@@ -1,0 +1,79 @@
+/* Linker Script v1.3 by Jeff Frohwein              */
+/*  v1.0 - Original release                         */
+/*  v1.1 - Added proper .data section support       */
+/*  v1.2 - Added support for c++ & iwram overlays   */
+/*       - Major contributions by Jason Wilkins.    */
+/*  v1.3 - .ewram section now can be used when      */
+/*         compiling for MULTIBOOT mode. This fixes */
+/*         malloc() in DevKitAdvance which depends  */
+/*         on __eheap_start instead of end to define*/
+/*         the starting location of heap space.     */
+/*         External global variable __gba_iwram_heap*/
+/*         support added to allow labels end, _end, */
+/*         & __end__ to point to end of iwram or    */
+/*         the end of ewram.                        */
+
+/* This file is released into the public domain   */
+/* for commercial or non-commercial use with no   */
+/* restrictions placed upon it.                   */
+
+OUTPUT_FORMAT("elf32-littlearm", "elf32-bigarm", "elf32-littlearm")
+OUTPUT_ARCH(arm)
+ENTRY(_start)
+
+__text_start = 0x8000000;
+__iwram_start = 0x3000000;
+
+SECTIONS
+{
+  .text __text_start :
+  {
+    *(.text.*)
+    . = ALIGN(4);
+  } = 0xff
+  __text_end = .;
+
+  .rodata :
+  {
+    *(.rodata)
+    . = ALIGN(4);
+  } = 0xff
+
+  .iwram __iwram_start :
+  {
+    __iwram_start = ABSOLUTE(.) ;
+    *(.iwram)
+    *iwram.*(.text)
+    . = ALIGN(4);   /* REQUIRED. LD is flaky without it. */
+  } = 0xff
+
+  __iwram_end = . ;
+
+  .bss ALIGN(4) :
+  {
+   __bss_start = ABSOLUTE(.);
+   __bss_start__ = ABSOLUTE(.);
+   *(.dynbss)
+   *(.gnu.linkonce.b*)
+   *(COMMON)
+   . = ALIGN(4);    /* REQUIRED. LD is flaky without it. */
+  }
+
+  __bss_end = . ;
+  __bss_end__ = . ;
+
+  .data ALIGN(4) :
+  {
+    __data_start = ABSOLUTE(.);
+    *(.data)
+    *(.data.*)
+    *(.gnu.linkonce.d*)
+    CONSTRUCTORS
+    . = ALIGN(4);  /* REQUIRED. LD is flaky without it. */
+  } = 0xff
+
+  __data_end  =  .;
+  _end = DEFINED (__gba_iwram_heap) ? __iheap_start : .; /* v1.3 */
+  __end__ = _end ; /* v1.3 */
+  PROVIDE (end = _end); /* v1.3 */
+}
