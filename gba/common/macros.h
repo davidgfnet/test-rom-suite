@@ -31,6 +31,16 @@
   bl write_text; \
   pop {lr};
 
+#define progress_bar_r1() \
+  push {lr}; \
+  mov r0, $0x2000000; \
+  mov r2, $0x7f; \
+  99: strb r2, [r0], #1; subs r1, r1, $1; bgt 99b; \
+  mov r2, $0; strb r2, [r0], #1; \
+  mov r0, $0x2000000; \
+  mov r1, $152; \
+  bl write_text; \
+  pop {lr};
 
 #define run_test(testfn, testname)  \
   adr lr, 20f; \

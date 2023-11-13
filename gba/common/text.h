@@ -2,6 +2,7 @@
 hexnum:
   .ascii "0123456789ABCDEF"
 
+.arm
 .align 4
 
 @ r0 buffer
@@ -28,9 +29,18 @@ int2hex:
 @ r0 buffer
 @ r1 integer
 int2dec:
-  push {r1-r5, lr}
-  ldr r4, =0xcccccccd
+  push {r1-r6, lr}
+
+  @ Add minus sign, change sign
+  mov r6, r0
+  tst r1, r1
+  mov r2, $'-'
+  strmib r2, [r0], #1
+  rsbmi r1, r1, $0
+
   mov r5, r0
+
+  ldr r4, =0xcccccccd
 
 1:
   umull	r3, r2, r4, r1
@@ -55,8 +65,8 @@ int2dec:
   cmp r0, r5
   blo 2b
 
-  mov r0, r3
-  pop {r1-r5, pc}
+  sub r3, r6, r0           @ Number of written chars
+  pop {r1-r6, pc}
 
 @ r0 buffer
 @ r1 format
@@ -186,6 +196,8 @@ clear_screen:
   adds r1, $-2
   bne 1b
   bx lr
+
+.pool
 
 .align 4
 textchars:
