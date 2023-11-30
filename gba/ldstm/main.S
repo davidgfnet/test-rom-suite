@@ -112,6 +112,7 @@ gotest:
 @ ARM mode tests
 
   @ LDM tests
+  screen_print_N(test_ldm_arm,  40, r2)
 
   @ Setup the LDM test memory space.
   @ Each test has a different reglist, we test all 15 base regs, 8 modes = 120
@@ -184,8 +185,7 @@ gotest:
     cmp r5, #15
     bne 2b
 
-  @ Save some regs
-  str r4, [sp, #4]
+  str r4, [sp, #4]       @ Save some regs
   str r6, [sp, #8]
 
   @ Jump to code execution! SP is preserved across the call
@@ -196,8 +196,7 @@ gotest:
   ldr r0, =CODE_AREA
   bx r0
 
-  @ Restore regs
-  ldr r4, [sp, #4]
+  ldr r4, [sp, #4]       @ Restore regs
   ldr r6, [sp, #8]
 
   @ Check result
@@ -220,6 +219,7 @@ gotest:
 
 
   @ STM tests
+  screen_print_N(test_stm_arm,  40, r2)
 
   @ Setup the STM test memory space.
   @ Each test has a different reglist, we test all 15 base regs, 8 modes = 120
@@ -289,8 +289,7 @@ gotest:
     ldr r1, =STM_A_REGS
     bl fill_playg_1
 
-    @ Actually call the routine.
-    str r4, [sp, #4]
+    str r4, [sp, #4]       @ save regs before call
     str r5, [sp, #8]
     str r6, [sp, #12]
 
@@ -298,15 +297,13 @@ gotest:
     ldr r0, =CODE_AREA
     bx r0
 
-    ldr r4, [sp, #4]
+    ldr r4, [sp, #4]       @ restore regs
     ldr r5, [sp, #8]
     ldr r6, [sp, #12]
 
-    @ Check result
-    cmp r0, $0
+    cmp r0, $0             @ Check for reg mismatch
     beq testfail_stm_reg
-
-    cmp r0, $1
+    cmp r0, $1             @ Check for mem mismatch
     beq testfail_stm_mem
 
     add r5, r5, $1
@@ -327,7 +324,7 @@ gotest:
   subs r6, r6, #1
   bne 1b
 
-  screen_print_N(passmsg,   45, r0)
+  screen_print_N(passmsg,   40, r0)
 
 @ Test pass!
   mov r0, $0x5000000
@@ -349,7 +346,6 @@ ldm_emu_tbl:
   .word emulate_ldm_post_down_nwb
   .word emulate_ldm_post_down_wb
 
-
 stm_emu_tbl:
   .word emulate_stm_pre_up_nwb
   .word emulate_stm_pre_up_wb
@@ -359,7 +355,6 @@ stm_emu_tbl:
   .word emulate_stm_post_up_wb
   .word emulate_stm_post_down_nwb
   .word emulate_stm_post_down_wb
-
 
 .pool
 
@@ -466,7 +461,13 @@ testfail_ldm:
   ldr r2, [r1, #56];
   screen_print_N(r14_text, 130, r2)
 
-  bl update_ldm_str
+  mov r3, r6
+  and r2, r0, $7           @ mode
+  lsr r1, r0, #3           @ base reg
+  ldr r0, =printbuf
+  bl ldm_fmt
+
+  screen_print_N(printbuf,   40, r0)
 
   ldr r1, =SAVED_DATA
   ldr r1, [r1, #REG_ERR]   @ mismatch reg
@@ -501,7 +502,7 @@ testfail_stm_reg:
   ldr r2, [r1, #56];
   screen_print_N(r14_text, 130, r2)
 
-  bl update_ldm_str
+  bl print_stm_inst
 
   ldr r1, =SAVED_DATA
   ldr r1, [r1, #REG_ERR]   @ mismatch reg
@@ -519,7 +520,7 @@ testfail_stm_reg:
 testfail_stm_mem:
 
   mov r0, r5
-  bl update_ldm_str
+  bl print_stm_inst
 
   @ Draw address offset and values:
   ldr r0, =SAVED_DATA
@@ -549,7 +550,7 @@ endloop:
   nop; nop; nop; nop; nop; nop;
   b endloop
 
-update_ldm_str:
+print_stm_inst:
   str lr, [sp]
 
   @ Write instruction string
@@ -798,6 +799,9 @@ title:
   .asciz "     GBA LDM/STM testrom\n         by davidgf.net"
 passmsg:
   .asciz "tests passed!"
+
+test_ldm_arm:  .asciz " testing ARM LDM ..."
+test_stm_arm:  .asciz " testing ARM STM ..."
 
 r0_1_text:   .asciz "r0  0x%x r1  0x%x"
 r2_3_text:   .asciz "r2  0x%x r3  0x%x"
