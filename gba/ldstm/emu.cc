@@ -66,6 +66,47 @@ inline unsigned emulate_ldm(
          (writeback      ? 0x00200000 : 0);
 }
 
+unsigned emulate_thumb_ldmia(
+  unsigned basereg, unsigned reglist, unsigned *regvalues
+) {
+
+  // Calcualte base address.
+  unsigned base = regvalues[basereg];
+  unsigned address = base & ~3U;
+  unsigned endaddr = base + 4 * popcnt(reglist);
+  regvalues[basereg] = endaddr;
+
+  for (unsigned i = 0; i < 8; i++)  {
+    if ((reglist >> i) & 0x01) {
+      volatile unsigned *memptr = (unsigned *)address;
+      regvalues[i] = *memptr;
+      address += 4;
+    }
+  }
+
+  // Returns the LDM instruction properly encoded.
+  return 0xC800 | reglist | (basereg << 8);
+}
+
+unsigned emulate_thumb_pop(
+  unsigned reglist, unsigned *regvalues
+) {
+
+  unsigned base = regvalues[13];
+  unsigned address = base & ~3U;
+  regvalues[13] = base + 4 * popcnt(reglist);
+
+  for (unsigned i = 0; i < 8; i++)  {
+    if ((reglist >> i) & 0x01) {
+      volatile unsigned *memptr = (unsigned *)address;
+      regvalues[i] = *memptr;
+      address += 4;
+    }
+  }
+
+  return 0xBC00 | reglist;   // Encoded pop instruction
+}
+
 // Format emulate_ldm_{pre/post}_{up/down}_{wb/nwb}()  // 1/0
 unsigned emulate_ldm_pre_up_wb(unsigned basereg, unsigned reglist, unsigned *regvalues) {
   return emulate_ldm(basereg, reglist, regvalues, true, true, true);

@@ -7,6 +7,12 @@
 .global stm_test_inst
 .global stm_test_fixture
 
+#define word_copy_thumb(source, destination)\
+  ldr r0, =(source);                        \
+  ldr r1, =(##source##_end);                \
+  ldr r2, =destination;                     \
+  bl wordcpy_thumb;
+
 #define word_copy(source, destination)      \
   ldr r0, =(source);                        \
   ldr r1, =(##source##_end);                \
@@ -107,8 +113,12 @@ gotest:
 
 @ Thumb mode tests
 
-  @ TODO ...
-
+  @ Test Thumb LDR
+  screen_print_N(test_ldm_thb,  40, r2)
+  ldr r0, =thumb_ld_tests
+  mov lr, pc
+  bx r0
+  
 @ ARM mode tests
 
   @ LDM tests
@@ -128,6 +138,7 @@ gotest:
   @ r6 contains the reglist
 
   #define REF_AREA     0x03000000
+  #define REF_AREA_2   0x03001000
   #define LDM_AREA     0x03002000
   #define INST_AREA    0x03002800
   #define CODE_AREA    0x03002A00
@@ -792,7 +803,113 @@ stm_test_data:
   .pool             @ Drop any pool here too!
 stm_test_fixture_end:
 
+thumb_ldmia_test_fail:
+  str r1, [sp]
 
+  mov r3, r2
+  mov r2, $3               @ mode (IA!)
+  ldr r0, =printbuf
+  bl ldm_fmt
+
+  screen_print_N(printbuf,   40, r0)
+
+  ldr r0, =printbuf
+  ldr r1, [sp]
+  bl reg_err_fmt
+  screen_print_N(printbuf,  145, r0)
+
+  ldr r2, =REF_AREA_2
+  ldr r3, [r2, #0]; ldr r4, [r2, #4];
+  screen_print_N(r0_1_text,  60, r3, r4)
+  ldr r3, [r2, #8]; ldr r4, [r2, #12];
+  screen_print_N(r2_3_text,  70, r3, r4)
+  ldr r3, [r2, #16]; ldr r4, [r2, #20];
+  screen_print_N(r4_5_text,  80, r3, r4)
+  ldr r3, [r2, #24]; ldr r4, [r2, #28];
+  screen_print_N(r6_7_text,  90, r3, r4)
+
+  mov r0, $0x5000000
+  ldr r1, =0x4F1B
+  strh r1, [r0]
+
+  b endloop
+
+
+@ Thumb testing aux routines
+.thumb
+.thumb_func
+setup_thumb_regs:
+  ldr r0, =(LDM_AREA + 16*4);
+  ldr r1, =(LDM_AREA + 16*4 + 32*4 * 1)
+  ldr r2, =(LDM_AREA + 16*4 + 32*4 * 2)
+  ldr r3, =(LDM_AREA + 16*4 + 32*4 * 3)
+  ldr r4, =(LDM_AREA + 16*4 + 32*4 * 4)
+  ldr r5, =(LDM_AREA + 16*4 + 32*4 * 5)
+  ldr r6, =(LDM_AREA + 16*4 + 32*4 * 6)
+  ldr r7, =(LDM_AREA + 16*4 + 32*4 * 7)
+  bx lr
+
+#define setup_thumb_regs_call()            \
+  bl setup_thumb_regs;                     \
+
+#define cmp_thb_reg(reg, offset) \
+  ldr r1, [r0, #(offset)];       \
+  cmp r1, reg;                   \
+  bne 5f;
+
+
+#define validate_thumb_regs(breg, msk)     \
+  mov r8, r0;                              \
+  mov r9, r1;                              \
+  ldr r0, =REF_AREA;                       \
+                                           \
+  cmp_thb_reg( r8,  0)                     \
+  cmp_thb_reg( r9,  4)                     \
+  cmp_thb_reg( r2,  8)                     \
+  cmp_thb_reg( r3, 12)                     \
+  cmp_thb_reg( r4, 16)                     \
+  cmp_thb_reg( r5, 20)                     \
+  cmp_thb_reg( r6, 24)                     \
+  cmp_thb_reg( r7, 28)                     \
+                                           \
+  b 1f;    /* Jump to the next test */     \
+5:                                         \
+  /* Test fail path */                     \
+  ldr r0, =REF_AREA_2;                     \
+  str r7, [r0, #28];                       \
+  str r6, [r0, #24];                       \
+  str r5, [r0, #20];                       \
+  str r4, [r0, #16];                       \
+  str r3, [r0, #12];                       \
+  str r2, [r0,  #8];                       \
+  mov r1, r9;                              \
+  str r1, [r0,  #4];                       \
+  mov r1, r8;                              \
+  str r1, [r0,  #0];                       \
+                                           \
+  mov r1, $breg;                           \
+  mov r2, $msk;                            \
+  ldr r0, =thumb_ldmia_test_fail;          \
+  bx r0
+  
+
+.thumb_func
+fill_playg_1_thumb:
+  ldr r2, =fill_playg_1
+  bx r2
+
+.thumb_func
+wordcpy_thumb:
+  ldr r3, [r0]
+  str r3, [r2]
+  add r0, $4
+  add r2, $4
+  cmp r0, r1
+  bne wordcpy_thumb
+  bx lr
+
+.pool
+.arm
 
 @ Text/display stuff
 title:
@@ -800,8 +917,9 @@ title:
 passmsg:
   .asciz "tests passed!"
 
-test_ldm_arm:  .asciz " testing ARM LDM ..."
-test_stm_arm:  .asciz " testing ARM STM ..."
+test_ldm_thb:  .asciz " testing Thumb LDM ..."
+test_ldm_arm:  .asciz " testing ARM LDM ...  "
+test_stm_arm:  .asciz " testing ARM STM ...  "
 
 r0_1_text:   .asciz "r0  0x%x r1  0x%x"
 r2_3_text:   .asciz "r2  0x%x r3  0x%x"
