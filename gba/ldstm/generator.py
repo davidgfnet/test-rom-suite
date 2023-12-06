@@ -35,7 +35,6 @@ print("word_copy_thumb(ldm_table, LDM_AREA);")
 
 for regb in range(8):
   for regl in range(1, 256):   # Empty reglist is undefined!
-    # Emulation code
     print("ldr r0, =(LDM_AREA);")
     print("ldr r1, =REF_AREA;")
     print("bl fill_playg_1_thumb")
@@ -43,13 +42,49 @@ for regb in range(8):
     print("mov r0, $%d" % regb)
     print("mov r1, $%d" % regl)
     print("ldr r2, =REF_AREA")
-    print("bl emulate_thumb_ldmia")
+    print("bl emulate_thumb_ldmia")    # Emulation code
 
     # Setup registers, initial state
-    print("setup_thumb_regs_call();")
+    print("bl setup_thumb_regs_ldm;")
     ienc = 0xC800 | regl | (regb << 8)
     print(".word 0x46c0%04x  // ldmia r%d!, {%s};" % (ienc, regb, reglist(regl)))
-    print("validate_thumb_regs(%d, %d);" % (regb, regl))
+    print("validate_thumb_ldm_regs(%d, %d);" % (regb, regl))
+    print(".pool")
+    print("1:")
+
+print("ldr r1, [sp]; bx r1")
+
+
+print(".thumb")
+print(".thumb_func")
+print("thumb_st_tests:")
+
+print("mov r0, lr; str r0, [sp]")
+
+for regb in range(8):
+  for regl in range(1, 256):   # Empty reglist is undefined!
+    # Prepare mem area for the store
+    print("word_copy_fast64_thumb(stm_table, STM_AREA);")
+
+    # Fill register space
+    print("ldr r0, =STM_AREA;")
+    print("ldr r1, =STM_A_REGS;")
+    print("bl fill_playg_1_thumb")
+
+    print("mov r0, $%d" % regb)
+    print("mov r1, $%d" % regl)
+    print("ldr r2, =STM_A_REGS")
+    print("bl emulate_thumb_stmia")
+
+    print("word_copy_fast64_thumb(STM_AREA, REF_AREA);")  # Copy the result to the ref area for later check
+
+    print("word_copy_fast64_thumb(stm_table, STM_AREA);")  # Re-init the areas again, for the new execution
+
+    # Setup registers, initial state
+    print("bl setup_thumb_regs_stm;")
+    ienc = 0xC000 | regl | (regb << 8)
+    print(".word 0x46c0%04x  // stmia r%d!, {%s};" % (ienc, regb, reglist(regl)))
+    print("validate_thumb_stm(%d, %d);" % (regb, regl))
     print(".pool")
     print("1:")
 

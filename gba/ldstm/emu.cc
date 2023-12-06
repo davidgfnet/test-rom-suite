@@ -186,6 +186,32 @@ inline unsigned emulate_stm(
          (writeback      ? 0x00200000 : 0);
 }
 
+unsigned emulate_thumb_stmia(
+  unsigned basereg, unsigned reglist, unsigned *regvalues
+) {
+
+  // Calcualte base address.
+  unsigned base = regvalues[basereg];
+  unsigned address = base & ~3U;
+  unsigned endaddr = base + 4 * popcnt(reglist);
+  bool base_updated = false;
+
+  for (unsigned i = 0; i < 8; i++)  {
+    if ((reglist >> i) & 0x01) {
+      volatile unsigned *memptr = (unsigned *)address;
+      *memptr = regvalues[i];
+      address += 4;
+      if (!base_updated) {
+        regvalues[basereg] = endaddr;
+        base_updated = true;
+      }
+    }
+  }
+
+  // Returns the LDM instruction properly encoded.
+  return 0xC800 | reglist | (basereg << 8);
+}
+
 // Format emulate_stm_{pre/post}_{up/down}_{wb/nwb}()  // 1/0
 unsigned emulate_stm_pre_up_wb(unsigned basereg, unsigned reglist, unsigned *regvalues) {
   return emulate_stm(basereg, reglist, regvalues, true, true, true);
@@ -211,8 +237,6 @@ unsigned emulate_stm_post_down_wb(unsigned basereg, unsigned reglist, unsigned *
 unsigned emulate_stm_post_down_nwb(unsigned basereg, unsigned reglist, unsigned *regvalues) {
   return emulate_stm(basereg, reglist, regvalues, false, false, false);
 }
-
-
 
 
 

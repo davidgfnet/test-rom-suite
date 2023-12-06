@@ -27,6 +27,16 @@
   mov lr, pc;                                            \
   bx r3;
 
+#define word_copy_fast64_thumb(source, destination)      \
+  ldr r0, =(source);                                     \
+  ldr r1, =(##source##_end);                             \
+  ldr r2, =destination;                                  \
+  ldr r3, =(IWRAM_CODE_AREA);                            \
+  mov r4, pc;                                            \
+  add r4, $5;                                            \
+  mov lr, r4;                                            \
+  bx r3;
+
 .arm
 
 #include "macros.h"
@@ -113,9 +123,15 @@ gotest:
 
 @ Thumb mode tests
 
-  @ Test Thumb LDR
+  @ Test Thumb LDMIA
   screen_print_N(test_ldm_thb,  40, r2)
   ldr r0, =thumb_ld_tests
+  mov lr, pc
+  bx r0
+
+  @ Test Thumb STMIA
+  screen_print_N(test_stm_thb,  40, r2)
+  ldr r0, =thumb_st_tests
   mov lr, pc
   bx r0
   
@@ -835,10 +851,79 @@ thumb_ldmia_test_fail:
   b endloop
 
 
+thumb_stmia_test_fail:
+  str r1, [sp]
+
+  mov r3, r2
+  mov r2, $3               @ mode (IA!)
+  ldr r0, =printbuf
+  bl stm_fmt
+
+  screen_print_N(printbuf,   40, r0)
+
+  ldr r0, =printbuf
+  ldr r1, [sp]
+  bl reg_err_fmt
+  screen_print_N(printbuf,  145, r0)
+
+  ldr r2, =REF_AREA_R
+  ldr r3, [r2, #0]; ldr r4, [r2, #4];
+  screen_print_N(r0_1_text,  60, r3, r4)
+  ldr r3, [r2, #8]; ldr r4, [r2, #12];
+  screen_print_N(r2_3_text,  70, r3, r4)
+  ldr r3, [r2, #16]; ldr r4, [r2, #20];
+  screen_print_N(r4_5_text,  80, r3, r4)
+  ldr r3, [r2, #24]; ldr r4, [r2, #28];
+  screen_print_N(r6_7_text,  90, r3, r4)
+
+  mov r0, $0x5000000
+  ldr r1, =0x4F1B
+  strh r1, [r0]
+
+  b endloop
+
+
+thumb_stmia_test_fail_mem:
+  str r1, [sp]
+  str r5, [sp, #4]
+
+  mov r3, r2
+  mov r2, $3               @ mode (IA!)
+  ldr r0, =printbuf
+  bl stm_fmt
+  screen_print_N(printbuf,   40, r0)
+
+  ldr r0, =printbuf
+  bl mem_err_fmt
+  screen_print_N(printbuf,  145, r0)
+
+  ldr r2, [sp, #0]
+  ldr r5, [sp, #4]
+  lsl r1, r5, #2
+  sub r1, r1, r2, lsl #7
+  sub r1, r1, $16*4
+  screen_print_N(mem_off,  70, r1)
+
+  ldr r5, [sp, #4]
+  lsl r5, r5, #2
+  ldr r0, =REF_AREA;
+  ldr r1, =STM_AREA;
+  ldr r0, [r0, r5]
+  ldr r1, [r1, r5]
+
+  screen_print_N(mem_cmp,  80, r0, r1)
+
+  mov r0, $0x5000000
+  ldr r1, =0x4F1B
+  strh r1, [r0]
+
+  b endloop
+
+
 @ Thumb testing aux routines
 .thumb
 .thumb_func
-setup_thumb_regs:
+setup_thumb_regs_ldm:
   ldr r0, =(LDM_AREA + 16*4);
   ldr r1, =(LDM_AREA + 16*4 + 32*4 * 1)
   ldr r2, =(LDM_AREA + 16*4 + 32*4 * 2)
@@ -849,8 +934,17 @@ setup_thumb_regs:
   ldr r7, =(LDM_AREA + 16*4 + 32*4 * 7)
   bx lr
 
-#define setup_thumb_regs_call()            \
-  bl setup_thumb_regs;                     \
+.thumb_func
+setup_thumb_regs_stm:
+  ldr r0, =(STM_AREA + 16*4);
+  ldr r1, =(STM_AREA + 16*4 + 32*4 * 1)
+  ldr r2, =(STM_AREA + 16*4 + 32*4 * 2)
+  ldr r3, =(STM_AREA + 16*4 + 32*4 * 3)
+  ldr r4, =(STM_AREA + 16*4 + 32*4 * 4)
+  ldr r5, =(STM_AREA + 16*4 + 32*4 * 5)
+  ldr r6, =(STM_AREA + 16*4 + 32*4 * 6)
+  ldr r7, =(STM_AREA + 16*4 + 32*4 * 7)
+  bx lr
 
 #define cmp_thb_reg(reg, offset) \
   ldr r1, [r0, #(offset)];       \
@@ -858,7 +952,7 @@ setup_thumb_regs:
   bne 5f;
 
 
-#define validate_thumb_regs(breg, msk)     \
+#define validate_thumb_ldm_regs(breg, msk) \
   mov r8, r0;                              \
   mov r9, r1;                              \
   ldr r0, =REF_AREA;                       \
@@ -891,7 +985,62 @@ setup_thumb_regs:
   mov r2, $msk;                            \
   ldr r0, =thumb_ldmia_test_fail;          \
   bx r0
-  
+
+
+#define validate_thumb_stm(breg, msk)      \
+  mov r8, r0;                              \
+  mov r9, r1;                              \
+  ldr r0, =REF_AREA_R;                     \
+                                           \
+  cmp_thb_reg( r8,  0)                     \
+  cmp_thb_reg( r9,  4)                     \
+  cmp_thb_reg( r2,  8)                     \
+  cmp_thb_reg( r3, 12)                     \
+  cmp_thb_reg( r4, 16)                     \
+  cmp_thb_reg( r5, 20)                     \
+  cmp_thb_reg( r6, 24)                     \
+  cmp_thb_reg( r7, 28)                     \
+                                           \
+  /* Validate the written memory area */   \
+  ldr r0, =REF_AREA;                       \
+  ldr r1, =STM_AREA;                       \
+  mov r5, $0;                              \
+  3:                                       \
+    ldmia r0!, {r3};                       \
+    ldmia r1!, {r4};                       \
+    cmp    r3, r4;                         \
+    bne 6f;                                \
+                                           \
+    add r5, $1;                            \
+    lsr r3, r5, $9;                        \
+    cmp r3, $0;                            \
+    beq 3b;                                \
+                                           \
+  b 1f;    /* Jump to next test */         \
+5:                                         \
+  /* Test fail path */                     \
+  ldr r0, =REF_AREA_2;                     \
+  str r7, [r0, #28];                       \
+  str r6, [r0, #24];                       \
+  str r5, [r0, #20];                       \
+  str r4, [r0, #16];                       \
+  str r3, [r0, #12];                       \
+  str r2, [r0,  #8];                       \
+  mov r1, r9;                              \
+  str r1, [r0,  #4];                       \
+  mov r1, r8;                              \
+  str r1, [r0,  #0];                       \
+                                           \
+  mov r1, $breg;                           \
+  mov r2, $msk;                            \
+  ldr r0, =thumb_stmia_test_fail;          \
+  bx r0;                                   \
+                                           \
+6:                                         \
+  mov r1, $breg;                           \
+  mov r2, $msk;                            \
+  ldr r0, =thumb_stmia_test_fail_mem;      \
+  bx r0;                                   \
 
 .thumb_func
 fill_playg_1_thumb:
@@ -918,6 +1067,7 @@ passmsg:
   .asciz "tests passed!"
 
 test_ldm_thb:  .asciz " testing Thumb LDM ..."
+test_stm_thb:  .asciz " testing Thumb STM ..."
 test_ldm_arm:  .asciz " testing ARM LDM ...  "
 test_stm_arm:  .asciz " testing ARM STM ...  "
 
