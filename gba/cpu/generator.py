@@ -460,6 +460,16 @@ alltests = []
 # Thumb mode tests
 
 if "thumb" in sys.argv[1:]:
+  for op, fnop in [ ("cmp", arm_cmp), ("cmn", arm_cmn), ("tst", arm_tst) ]:
+    t = ASMTest("thtest_" + op, "allcpsr", [0, 1], thumbmode=True, checkres=0)
+    t.addInst(" %s r3, r1" % op)
+    for opB in input_table[1]:
+      for opA in input_table[0]:
+        for cpsr in allcpsr:
+          cpsrres = fnop(opA, opB, cpsr)
+          t.addTestCase(cpsr, None, cpsrres)
+    alltests.append(t)
+
   for op, fnop in [("mvn", arm_mvns), ("neg", arm_negs)]:
     t = ASMTest("thtest_" + op, "allcpsr", [4], thumbmode=True)
     t.addInst(" %s r3, r0" % op)
