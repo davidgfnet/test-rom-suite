@@ -4,7 +4,7 @@
 # flags, a variety of interesting inputs (zero, negative...), and also
 # every possible shift operation and interesting operand value.
 
-import random, math
+import random, math, sys
 
 def ror32(val, sa):
   sa = sa << 1
@@ -26,6 +26,40 @@ def _cpsrlo(res, cpsr):
   z = 1 if res == 0 else 0
   n = 1 if res & 0x80000000 else 0
   return ((cpsr & 0x30000000) | ((1 if n else 0) << 31) | ((1 if z else 0) << 30))
+
+# Immediate Op2. Can only really affect carry flag
+def oplsr_imm(op, imm, cpsr0):
+  if imm == 0:
+    r = 0
+    c = (op >> 31) & 1
+  else:
+    r = op >> imm
+    c = (op >> (imm-1)) & 1
+  return (r, _cpsr(cpsr0 & 0x80000000, cpsr0 & 0x40000000, c, cpsr0 & 0x10000000))
+
+def oplsl_imm(op, imm, cpsr0):
+  return oplsl(op, imm, cpsr0)
+
+def opasr_imm(op, imm, cpsr0):
+  if imm == 0:
+    imm = 32
+  for i in range(imm):
+    c = op & 1
+    op = (op >> 1) | (op & 0x80000000)
+  return (op, _cpsr(cpsr0 & 0x80000000, cpsr0 & 0x40000000, c, cpsr0 & 0x10000000))
+
+def opror_imm(op, imm, cpsr0):
+  if imm == 0:
+    c0 = (cpsr0 >> 29) & 1
+    r = (op >> 1) | (c0 << 31)
+    c = op & 1
+  else:
+    r = ((op >> imm) | (op << (32-imm))) & 0xffffffff
+    c = (op >> (imm-1)) & 1
+
+  return (r, _cpsr(cpsr0 & 0x80000000, cpsr0 & 0x40000000, c, cpsr0 & 0x10000000))
+
+
 
 def oplsr(a, b, cpsr0):
   r = a >> b
@@ -177,6 +211,9 @@ def arm_smulls(a, b, cpsr0):
 def genInterestingShifts():
   return [0, 1, 2, 30, 31, 32, 33, 34]
 
+def genInterestingShifts15():
+  return [0, 1, 14, 15, 16, 29, 30, 31]
+
 def genInterestingImm12():
   for sa in range(16):
     for imm8 in [0x55, 0x0, 0xFF, 0x7E, 0x7F, 0x80, 0xFE, 0xAA]:
@@ -226,7 +263,7 @@ def compress(res_array):
 
 class ASMTest(object):
   def __init__(self, test_name, cpsr_input, input_tables,
-               cpsrmask=0xF0, checkres=1, thumbmode=False, isimm=False):
+               cpsrmask=0xF0, checkres=1, thumbmode=False, isimm=False, isimm5=False):
     self._resdata = []
     self._rescpsr = []
     self._test_name = test_name
@@ -235,9 +272,11 @@ class ASMTest(object):
     self._checkres = checkres
     self._thumbmode = thumbmode
     self._isimm = isimm
+    self._isimm5 = isimm5
     self._cpsr_input = cpsr_input
     self._cpsrmask = cpsrmask
     self.insts = []
+    assert not (isimm and isimm5)
 
   def addInst(self, inst):
     self.insts.append(inst)
@@ -323,6 +362,15 @@ class ASMTest(object):
       insts.append("ldr r3, [r7], #4")    # Copy any return instruction
       insts.append("str r3, [r5], #4")
       insts.append("mov r7, $0x03000000")
+    elif self._isimm5:
+      insts.append("mov r5, $0x03000000")
+      insts.append("ldr r3, [r7], #4")
+      insts.append("bic r3, r3, $0xF80")   # Imm5 goes in bits [11..7]
+      insts.append("orr r3, r3, r2, lsl #7")
+      insts.append("str r3, [r5], #4")
+      insts.append("ldr r3, [r7], #4")    # Copy any return instruction
+      insts.append("str r3, [r5], #4")
+      insts.append("mov r7, $0x03000000")
 
     if self._thumbmode:
       insts.append("mov r3, r0")      # Only two operands!
@@ -400,203 +448,236 @@ for op in genInterestingImm12():
   input_table[5].append(op)
   print(".word 0x%x   @ 0x%x" % ((op[0] << 8) | op[1], ror32(op[1], op[0])))
 
+input_table.append([])
+print("operand_table_6:")
+for op in genInterestingShifts15():
+  input_table[6].append(op)
+  print(".word 0x%x" % op)
+
 alltests = []
 
 
 # Thumb mode tests
 
-for op, fnop in [("mvn", arm_mvns), ("neg", arm_negs)]:
-  t = ASMTest("thtest_" + op, "allcpsr", [4], thumbmode=True)
-  t.addInst(" %s r3, r0" % op)
-  for opA in input_table[4]:
-    for cpsr in allcpsr:
-      res, cpsrres = fnop(opA, cpsr)
-      t.addTestCase(cpsr, res, cpsrres)
-  alltests.append(t)
-
-for op, fnop in [("lsr", oplsr), ("lsl", oplsl), ("asr", opasr), ("ror", opror)]:
-  t = ASMTest("thtest_" + op, "allcpsr", [0, 4], thumbmode=True)
-  t.addInst(" %s r3, r1" % op)
-  for opB in input_table[4]:
-    for opA in input_table[0]:
+if "thumb" in sys.argv[1:]:
+  for op, fnop in [("mvn", arm_mvns), ("neg", arm_negs)]:
+    t = ASMTest("thtest_" + op, "allcpsr", [4], thumbmode=True)
+    t.addInst(" %s r3, r0" % op)
+    for opA in input_table[4]:
       for cpsr in allcpsr:
-        res, cpsrres = fnop(opA, opB, cpsr)
+        res, cpsrres = fnop(opA, cpsr)
         t.addTestCase(cpsr, res, cpsrres)
-  alltests.append(t)
+    alltests.append(t)
 
-for op, fnop in [
-  ("add", arm_adds), ("sub", arm_subs), ("adc", arm_adcs), ("sbc", arm_sbcs),
-  ("and", arm_ands), ("orr", arm_orrs), ("eor", arm_eors), ("bic", arm_bics),
-  ("mul", arm_muls),
-]:
-  cpsrmask = 0xC0 if op == "mul" else 0xF0
-  t = ASMTest("thtest_" + op, "allcpsr", [0, 1], thumbmode=True, cpsrmask=cpsrmask)
-  t.addInst(" %s r3, r1" % op)
-  for opB in input_table[1]:
-    for opA in input_table[0]:
-      for cpsr in allcpsr:
-        res, cpsrres = fnop(opA, opB, cpsr)
-        t.addTestCase(cpsr, res, cpsrres)
-  alltests.append(t)
+  for op, fnop in [("lsr", oplsr), ("lsl", oplsl), ("asr", opasr), ("ror", opror)]:
+    t = ASMTest("thtest_" + op, "allcpsr", [0, 4], thumbmode=True)
+    t.addInst(" %s r3, r1" % op)
+    for opB in input_table[4]:
+      for opA in input_table[0]:
+        for cpsr in allcpsr:
+          res, cpsrres = fnop(opA, opB, cpsr)
+          t.addTestCase(cpsr, res, cpsrres)
+    alltests.append(t)
+
+  for op, fnop in [
+    ("add", arm_adds), ("sub", arm_subs), ("adc", arm_adcs), ("sbc", arm_sbcs),
+    ("and", arm_ands), ("orr", arm_orrs), ("eor", arm_eors), ("bic", arm_bics),
+    ("mul", arm_muls),
+  ]:
+    cpsrmask = 0xC0 if op == "mul" else 0xF0
+    t = ASMTest("thtest_" + op, "allcpsr", [0, 1], thumbmode=True, cpsrmask=cpsrmask)
+    t.addInst(" %s r3, r1" % op)
+    for opB in input_table[1]:
+      for opA in input_table[0]:
+        for cpsr in allcpsr:
+          res, cpsrres = fnop(opA, opB, cpsr)
+          t.addTestCase(cpsr, res, cpsrres)
+    alltests.append(t)
 
 # ARM mode tests
 
 # Immediate mode (12 bit)
-for op, fnop, rorflg in [
-  ("and", arm_and, False), ("ands", arm_ands, True),
-  ("orr", arm_orr, False), ("orrs", arm_orrs, True),
-  ("eor", arm_eor, False), ("eors", arm_eors, True),
-  ("bic", arm_bic, False), ("bics", arm_bics, True),
-  ("add", arm_add, False), ("adds", arm_adds, False),
-  ("adc", arm_adc, False), ("adcs", arm_adcs, False),
-  ("sub", arm_sub, False), ("subs", arm_subs, False),
-  ("sbc", arm_sbc, False), ("sbcs", arm_sbcs, False),
-  ("rsb", arm_rsb, False), ("rsbs", arm_rsbs, False),
-  ("rsc", arm_rsc, False), ("rscs", arm_rscs, False),
-]:
-  t = ASMTest("test_imm_" + op, "allcpsr", [0, 5], isimm=True)
-  t.addInst(" %s r3, r0, $0x55" % op)
-  for opB in input_table[5]:
-    for opA in input_table[0]:
-      for cpsr in allcpsr:
-        opBval, cpsr1 = op2ror(opB[1], opB[0], cpsr)
-        res, cpsrres = fnop(opA, opBval, cpsr1 if rorflg else cpsr)
-        t.addTestCase(cpsr, res, cpsrres)
-  alltests.append(t)
-
-
-for op, fnop, upflg in [
-  ("lsr", oplsr, False), ("lsrs", oplsr, True),
-  ("lsl", oplsl, False), ("lsls", oplsl, True),
-  ("asr", opasr, False), ("asrs", opasr, True),
-  ("ror", opror, False), ("rors", opror, True),
-]:
-  t = ASMTest("test_" + op, "allcpsr", [0, 4])
-  t.addInst(" %s r3, r0, r1" % op)
-  for opB in input_table[4]:
-    for opA in input_table[0]:
-      for cpsr in allcpsr:
-        res, cpsrres = fnop(opA, opB, cpsr)
-        t.addTestCase(cpsr, res, cpsrres if upflg else cpsr)
-  alltests.append(t)
-
-for op, fnop in [
-  ("mov", arm_mov), ("movs", arm_movs),
-  ("mvn", arm_mvn), ("mvns", arm_mvns),
-]:
-  t = ASMTest("test_" + op, "allcpsr", [4])
-  t.addInst(" %s r3, r0" % op)
-  for opA in input_table[4]:
-    for cpsr in allcpsr:
-      res, cpsrres = fnop(opA, cpsr)
-      t.addTestCase(cpsr, res, cpsrres)
-  alltests.append(t)
-
-for op, fnop in [
-  ("and", arm_and), ("ands", arm_ands),
-  ("orr", arm_orr), ("orrs", arm_orrs),
-  ("eor", arm_eor), ("eors", arm_eors),
-  ("bic", arm_bic), ("bics", arm_bics),
-  ("add", arm_add), ("adds", arm_adds),
-  ("adc", arm_adc), ("adcs", arm_adcs),
-  ("sub", arm_sub), ("subs", arm_subs),
-  ("sbc", arm_sbc), ("sbcs", arm_sbcs),
-  ("rsb", arm_rsb), ("rsbs", arm_rsbs),
-  ("rsc", arm_rsc), ("rscs", arm_rscs),
-  ("mul", arm_mul), ("muls", arm_muls),
-]:
-  cpsrmask = 0xC0 if op[:3] == "mul" else 0xF0
-  t = ASMTest("test_" + op, "allcpsr", [0, 1], cpsrmask=cpsrmask)
-  t.addInst(" %s r3, r0, r1" % op)
-  for opB in input_table[1]:
-    for opA in input_table[0]:
-      for cpsr in allcpsr:
-        res, cpsrres = fnop(opA, opB, cpsr)
-        t.addTestCase(cpsr, res, cpsrres)
-  alltests.append(t)
-
-for op, fnop in [
-  ("umull", arm_umull), ("umulls", arm_umulls),
-  ("smull", arm_smull), ("smulls", arm_smulls),
-]:
-  t = ASMTest("test_" + op, "allcpsr", [0, 1], checkres=2, cpsrmask=0xC0)
-  t.addInst(" %s r3, r4, r0, r1" % op)
-  for opB in input_table[1]:
-    for opA in input_table[0]:
-      for cpsr in allcpsr:
-        reslo, reshi, cpsrres = fnop(opA, opB, cpsr)
-        t.addTestCase(cpsr, (reslo, reshi), cpsrres)
-  alltests.append(t)
-
-for op, fnop in [
-  ("mla", arm_mla), ("mlas", arm_mlas),
-]:
-  t = ASMTest("test_" + op, "allcpsr", [0, 1, 2], cpsrmask=0xC0)
-  t.addInst(" %s r3, r0, r1, r2" % op)
-  for opC in input_table[2]:
-    for opB in input_table[1]:
+if "arm_imm" in sys.argv[1:]:
+  for op, fnop, rorflg in [
+    ("and", arm_and, False), ("ands", arm_ands, True),
+    ("orr", arm_orr, False), ("orrs", arm_orrs, True),
+    ("eor", arm_eor, False), ("eors", arm_eors, True),
+    ("bic", arm_bic, False), ("bics", arm_bics, True),
+    ("add", arm_add, False), ("adds", arm_adds, False),
+    ("adc", arm_adc, False), ("adcs", arm_adcs, False),
+    ("sub", arm_sub, False), ("subs", arm_subs, False),
+    ("sbc", arm_sbc, False), ("sbcs", arm_sbcs, False),
+    ("rsb", arm_rsb, False), ("rsbs", arm_rsbs, False),
+    ("rsc", arm_rsc, False), ("rscs", arm_rscs, False),
+  ]:
+    t = ASMTest("test_imm_" + op, "allcpsr", [0, 5], isimm=True)
+    t.addInst(" %s r3, r0, $0x55" % op)
+    for opB in input_table[5]:
       for opA in input_table[0]:
         for cpsr in allcpsr:
-          res, cpsrres = fnop(opA, opB, opC, cpsr)
+          opBval, cpsr1 = op2ror(opB[1], opB[0], cpsr)
+          res, cpsrres = fnop(opA, opBval, cpsr1 if rorflg else cpsr)
           t.addTestCase(cpsr, res, cpsrres)
-  alltests.append(t)
-
-for op, fnop, updflag in [
-  ("and", arm_and, False), ("ands", arm_ands, True),
-  ("orr", arm_orr, False), ("orrs", arm_orrs, True),
-  ("eor", arm_eor, False), ("eors", arm_eors, True),
-  ("bic", arm_bic, False), ("bics", arm_bics, True),
-
-  ("add", arm_add, False), ("adds", arm_adds, False),
-  ("sub", arm_sub, False), ("subs", arm_subs, False),
-  ("adc", arm_adc, False), ("adcs", arm_adcs, False),
-  ("sbc", arm_sbc, False), ("sbcs", arm_sbcs, False),
-  ("rsb", arm_rsb, False), ("rsbs", arm_rsbs, False),
-  ("rsc", arm_rsc, False), ("rscs", arm_rscs, False),
-]:
-  for op2, fnop2 in [("lsr", oplsr), ("lsl", oplsl), ("asr", opasr), ("ror", opror)]:
-    t = ASMTest("test_" + op + "_" + op2, "allcpsr", [0, 1, 4])
-    t.addInst(" %s r3, r0, r1, %s r2" % (op, op2))
-    for opC in input_table[4]:
-      for opB in input_table[1]:
-        for opA in input_table[0]:
-          for cpsr in allcpsr:
-            operand2, cpsrint = fnop2(opB, opC, cpsr)
-            res, cpsrres = fnop(opA, operand2, cpsrint if updflag else cpsr)
-            t.addTestCase(cpsr, res, cpsrres)
     alltests.append(t)
 
-for op, fnop, upflg in [
-  ("mov", arm_mov, False), ("movs", arm_movs, True),
-  ("mvn", arm_mvn, False), ("mvns", arm_mvns, True),
-]:
-  for op2, fnop2 in [("lsr", oplsr), ("lsl", oplsl), ("asr", opasr), ("ror", opror)]:
-    t = ASMTest("test_" + op + "_" + op2, "allcpsr", [0, 4])
-    t.addInst(" %s r3, r0, %s r1" % (op, op2))
+  for op, fnop, updflag in [
+    ("and", arm_and, False), ("ands", arm_ands, True),
+    ("orr", arm_orr, False), ("orrs", arm_orrs, True),
+    ("eor", arm_eor, False), ("eors", arm_eors, True),
+    ("bic", arm_bic, False), ("bics", arm_bics, True),
+
+    ("add", arm_add, False), ("adds", arm_adds, False),
+    ("sub", arm_sub, False), ("subs", arm_subs, False),
+    ("adc", arm_adc, False), ("adcs", arm_adcs, False),
+    ("sbc", arm_sbc, False), ("sbcs", arm_sbcs, False),
+    ("rsb", arm_rsb, False), ("rsbs", arm_rsbs, False),
+    ("rsc", arm_rsc, False), ("rscs", arm_rscs, False),
+  ]:
+    for op2, fnop2 in [("lsr", oplsr_imm), ("lsl", oplsl_imm), ("asr", opasr_imm), ("ror", opror_imm)]:
+      t = ASMTest("test_imm_" + op + "_" + op2, "allcpsr", [0, 1, 6], isimm5=True)
+      t.addInst(" %s r3, r0, r1, %s $0x5" % (op, op2))
+      for opC in input_table[6]:
+        for opB in input_table[1]:
+          for opA in input_table[0]:
+            for cpsr in allcpsr:
+              operand2, cpsrint = fnop2(opB, opC, cpsr)
+              res, cpsrres = fnop(opA, operand2, cpsrint if updflag else cpsr)
+              t.addTestCase(cpsr, res, cpsrres)
+      alltests.append(t)
+
+if "arm_reg" in sys.argv[1:]:
+  for op, fnop, upflg in [
+    ("lsr", oplsr, False), ("lsrs", oplsr, True),
+    ("lsl", oplsl, False), ("lsls", oplsl, True),
+    ("asr", opasr, False), ("asrs", opasr, True),
+    ("ror", opror, False), ("rors", opror, True),
+  ]:
+    t = ASMTest("test_" + op, "allcpsr", [0, 4])
+    t.addInst(" %s r3, r0, r1" % op)
     for opB in input_table[4]:
       for opA in input_table[0]:
         for cpsr in allcpsr:
-          operand2, cpsrint = fnop2(opA, opB, cpsr)
-          res, cpsrres = fnop(operand2, cpsrint if upflg else cpsr)
+          res, cpsrres = fnop(opA, opB, cpsr)
+          t.addTestCase(cpsr, res, cpsrres if upflg else cpsr)
+    alltests.append(t)
+
+  for op, fnop in [
+    ("mov", arm_mov), ("movs", arm_movs),
+    ("mvn", arm_mvn), ("mvns", arm_mvns),
+  ]:
+    t = ASMTest("test_" + op, "allcpsr", [4])
+    t.addInst(" %s r3, r0" % op)
+    for opA in input_table[4]:
+      for cpsr in allcpsr:
+        res, cpsrres = fnop(opA, cpsr)
+        t.addTestCase(cpsr, res, cpsrres)
+    alltests.append(t)
+
+  for op, fnop in [
+    ("and", arm_and), ("ands", arm_ands),
+    ("orr", arm_orr), ("orrs", arm_orrs),
+    ("eor", arm_eor), ("eors", arm_eors),
+    ("bic", arm_bic), ("bics", arm_bics),
+    ("add", arm_add), ("adds", arm_adds),
+    ("adc", arm_adc), ("adcs", arm_adcs),
+    ("sub", arm_sub), ("subs", arm_subs),
+    ("sbc", arm_sbc), ("sbcs", arm_sbcs),
+    ("rsb", arm_rsb), ("rsbs", arm_rsbs),
+    ("rsc", arm_rsc), ("rscs", arm_rscs),
+    ("mul", arm_mul), ("muls", arm_muls),
+  ]:
+    cpsrmask = 0xC0 if op[:3] == "mul" else 0xF0
+    t = ASMTest("test_" + op, "allcpsr", [0, 1], cpsrmask=cpsrmask)
+    t.addInst(" %s r3, r0, r1" % op)
+    for opB in input_table[1]:
+      for opA in input_table[0]:
+        for cpsr in allcpsr:
+          res, cpsrres = fnop(opA, opB, cpsr)
           t.addTestCase(cpsr, res, cpsrres)
     alltests.append(t)
 
-for op, fnop, updflag in [
-  ("cmp", arm_cmp, False),
-  ("cmn", arm_cmn, False),
-  ("tst", arm_tst, True),
-]:
-  for op2, fnop2 in [("lsr", oplsr), ("lsl", oplsl), ("asr", opasr), ("ror", opror)]:
-    t = ASMTest("test_" + op + "_" + op2, "allcpsr", [0, 1, 4], checkres=0)
-    t.addInst(" %s r0, r1, %s r2" % (op, op2))
-    for opC in input_table[4]:
+  for op, fnop in [
+    ("umull", arm_umull), ("umulls", arm_umulls),
+    ("smull", arm_smull), ("smulls", arm_smulls),
+  ]:
+    t = ASMTest("test_" + op, "allcpsr", [0, 1], checkres=2, cpsrmask=0xC0)
+    t.addInst(" %s r3, r4, r0, r1" % op)
+    for opB in input_table[1]:
+      for opA in input_table[0]:
+        for cpsr in allcpsr:
+          reslo, reshi, cpsrres = fnop(opA, opB, cpsr)
+          t.addTestCase(cpsr, (reslo, reshi), cpsrres)
+    alltests.append(t)
+
+  for op, fnop in [
+    ("mla", arm_mla), ("mlas", arm_mlas),
+  ]:
+    t = ASMTest("test_" + op, "allcpsr", [0, 1, 2], cpsrmask=0xC0)
+    t.addInst(" %s r3, r0, r1, r2" % op)
+    for opC in input_table[2]:
       for opB in input_table[1]:
         for opA in input_table[0]:
           for cpsr in allcpsr:
-            operand2, cpsrint = fnop2(opB, opC, cpsr)
-            cpsrres = fnop(opA, operand2, cpsrint if updflag else cpsr)
-            t.addTestCase(cpsr, None, cpsrres)
+            res, cpsrres = fnop(opA, opB, opC, cpsr)
+            t.addTestCase(cpsr, res, cpsrres)
     alltests.append(t)
+
+  for op, fnop, updflag in [
+    ("and", arm_and, False), ("ands", arm_ands, True),
+    ("orr", arm_orr, False), ("orrs", arm_orrs, True),
+    ("eor", arm_eor, False), ("eors", arm_eors, True),
+    ("bic", arm_bic, False), ("bics", arm_bics, True),
+
+    ("add", arm_add, False), ("adds", arm_adds, False),
+    ("sub", arm_sub, False), ("subs", arm_subs, False),
+    ("adc", arm_adc, False), ("adcs", arm_adcs, False),
+    ("sbc", arm_sbc, False), ("sbcs", arm_sbcs, False),
+    ("rsb", arm_rsb, False), ("rsbs", arm_rsbs, False),
+    ("rsc", arm_rsc, False), ("rscs", arm_rscs, False),
+  ]:
+    for op2, fnop2 in [("lsr", oplsr), ("lsl", oplsl), ("asr", opasr), ("ror", opror)]:
+      t = ASMTest("test_" + op + "_" + op2, "allcpsr", [0, 1, 4])
+      t.addInst(" %s r3, r0, r1, %s r2" % (op, op2))
+      for opC in input_table[4]:
+        for opB in input_table[1]:
+          for opA in input_table[0]:
+            for cpsr in allcpsr:
+              operand2, cpsrint = fnop2(opB, opC, cpsr)
+              res, cpsrres = fnop(opA, operand2, cpsrint if updflag else cpsr)
+              t.addTestCase(cpsr, res, cpsrres)
+      alltests.append(t)
+
+  for op, fnop, upflg in [
+    ("mov", arm_mov, False), ("movs", arm_movs, True),
+    ("mvn", arm_mvn, False), ("mvns", arm_mvns, True),
+  ]:
+    for op2, fnop2 in [("lsr", oplsr), ("lsl", oplsl), ("asr", opasr), ("ror", opror)]:
+      t = ASMTest("test_" + op + "_" + op2, "allcpsr", [0, 4])
+      t.addInst(" %s r3, r0, %s r1" % (op, op2))
+      for opB in input_table[4]:
+        for opA in input_table[0]:
+          for cpsr in allcpsr:
+            operand2, cpsrint = fnop2(opA, opB, cpsr)
+            res, cpsrres = fnop(operand2, cpsrint if upflg else cpsr)
+            t.addTestCase(cpsr, res, cpsrres)
+      alltests.append(t)
+
+  for op, fnop, updflag in [
+    ("cmp", arm_cmp, False),
+    ("cmn", arm_cmn, False),
+    ("tst", arm_tst, True),
+  ]:
+    for op2, fnop2 in [("lsr", oplsr), ("lsl", oplsl), ("asr", opasr), ("ror", opror)]:
+      t = ASMTest("test_" + op + "_" + op2, "allcpsr", [0, 1, 4], checkres=0)
+      t.addInst(" %s r0, r1, %s r2" % (op, op2))
+      for opC in input_table[4]:
+        for opB in input_table[1]:
+          for opA in input_table[0]:
+            for cpsr in allcpsr:
+              operand2, cpsrint = fnop2(opB, opC, cpsr)
+              cpsrres = fnop(opA, operand2, cpsrint if updflag else cpsr)
+              t.addTestCase(cpsr, None, cpsrres)
+      alltests.append(t)
 
 totcnt = sum(t._casecnt for t in alltests)
 print("@ Total number of tests: %d" % totcnt)

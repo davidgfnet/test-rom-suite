@@ -71,6 +71,7 @@ gotest:
 
 @ Thumb mode tests
 
+#ifdef TESTS_THUMB
   run_test(thtest_mvn,  "mvn r3, r0")
   run_test(thtest_neg,  "neg r3, r0")
 
@@ -88,8 +89,11 @@ gotest:
   run_test(thtest_eor,  "eors r3, r0, r1")
   run_test(thtest_bic,  "bics r3, r0, r1")
   run_test(thtest_mul,  "muls r3, r0, r1")
+#endif
 
 @ ARM mode tests
+
+#ifdef TESTS_ARM_IMM
   run_test(test_imm_and,  "and  r3, r0, imm")
   run_test(test_imm_ands, "ands r3, r0, imm")
   run_test(test_imm_orr,  "orr  r3, r0, imm")
@@ -111,6 +115,91 @@ gotest:
   run_test(test_imm_rsc,  "rsc  r3, r0, imm")
   run_test(test_imm_rscs, "rscs r3, r0, imm")
 
+  run_test(test_imm_and_lsr,  "and r3, r0, r1, lsr imm")
+  run_test(test_imm_and_lsl,  "and r3, r0, r1, lsl imm")
+  run_test(test_imm_and_asr,  "and r3, r0, r1, asr imm")
+  run_test(test_imm_and_ror,  "and r3, r0, r1, ror imm")
+  run_test(test_imm_ands_lsr, "ands r3, r0, r1, lsr imm")
+  run_test(test_imm_ands_lsl, "ands r3, r0, r1, lsl imm")
+  run_test(test_imm_ands_asr, "ands r3, r0, r1, asr imm")
+  run_test(test_imm_ands_ror, "ands r3, r0, r1, ror imm")
+  run_test(test_imm_orr_lsr,  "orr r3, r0, r1, lsr imm")
+  run_test(test_imm_orr_lsl,  "orr r3, r0, r1, lsl imm")
+  run_test(test_imm_orr_asr,  "orr r3, r0, r1, asr imm")
+  run_test(test_imm_orr_ror,  "orr r3, r0, r1, ror imm")
+  run_test(test_imm_orrs_lsr, "orrs r3, r0, r1, lsr imm")
+  run_test(test_imm_orrs_lsl, "orrs r3, r0, r1, lsl imm")
+  run_test(test_imm_orrs_asr, "orrs r3, r0, r1, asr imm")
+  run_test(test_imm_orrs_ror, "orrs r3, r0, r1, ror imm")
+  run_test(test_imm_eor_lsr,  "eor r3, r0, r1, lsr imm")
+  run_test(test_imm_eor_lsl,  "eor r3, r0, r1, lsl imm")
+  run_test(test_imm_eor_asr,  "eor r3, r0, r1, asr imm")
+  run_test(test_imm_eor_ror,  "eor r3, r0, r1, ror imm")
+  run_test(test_imm_eors_lsr, "eors r3, r0, r1, lsr imm")
+  run_test(test_imm_eors_lsl, "eors r3, r0, r1, lsl imm")
+  run_test(test_imm_eors_asr, "eors r3, r0, r1, asr imm")
+  run_test(test_imm_eors_ror, "eors r3, r0, r1, ror imm")
+  run_test(test_imm_bic_lsr,  "bic r3, r0, r1, lsr imm")
+  run_test(test_imm_bic_lsl,  "bic r3, r0, r1, lsl imm")
+  run_test(test_imm_bic_asr,  "bic r3, r0, r1, asr imm")
+  run_test(test_imm_bic_ror,  "bic r3, r0, r1, ror imm")
+  run_test(test_imm_bics_lsr, "bics r3, r0, r1, lsr imm")
+  run_test(test_imm_bics_lsl, "bics r3, r0, r1, lsl imm")
+  run_test(test_imm_bics_asr, "bics r3, r0, r1, asr imm")
+  run_test(test_imm_bics_ror, "bics r3, r0, r1, ror imm")
+
+  run_test(test_imm_add_lsr,  "add r3, r0, r1, lsr imm")
+  run_test(test_imm_add_lsl,  "add r3, r0, r1, lsl imm")
+  run_test(test_imm_add_asr,  "add r3, r0, r1, asr imm")
+  run_test(test_imm_add_ror,  "add r3, r0, r1, ror imm")
+  run_test(test_imm_adds_lsr, "adds r3, r0, r1, lsr imm")
+  run_test(test_imm_adds_lsl, "adds r3, r0, r1, lsl imm")
+  run_test(test_imm_adds_asr, "adds r3, r0, r1, asr imm")
+  run_test(test_imm_adds_ror, "adds r3, r0, r1, ror imm")
+  run_test(test_imm_sub_lsr,  "sub r3, r0, r1, lsr imm")
+  run_test(test_imm_sub_lsl,  "sub r3, r0, r1, lsl imm")
+  run_test(test_imm_sub_asr,  "sub r3, r0, r1, asr imm")
+  run_test(test_imm_sub_ror,  "sub r3, r0, r1, ror imm")
+  run_test(test_imm_subs_lsr, "subs r3, r0, r1, lsr imm")
+  run_test(test_imm_subs_lsl, "subs r3, r0, r1, lsl imm")
+  run_test(test_imm_subs_asr, "subs r3, r0, r1, asr imm")
+  run_test(test_imm_subs_ror, "subs r3, r0, r1, ror imm")
+
+  run_test(test_imm_adc_lsr,  "adc r3, r0, r1, lsr imm")
+  run_test(test_imm_adc_lsl,  "adc r3, r0, r1, lsl imm")
+  run_test(test_imm_adc_asr,  "adc r3, r0, r1, asr imm")
+  run_test(test_imm_adc_ror,  "adc r3, r0, r1, ror imm")
+  run_test(test_imm_adcs_lsr, "adcs r3, r0, r1, lsr imm")
+  run_test(test_imm_adcs_lsl, "adcs r3, r0, r1, lsl imm")
+  run_test(test_imm_adcs_asr, "adcs r3, r0, r1, asr imm")
+  run_test(test_imm_adcs_ror, "adcs r3, r0, r1, ror imm")
+  run_test(test_imm_sbc_lsr,  "sbc r3, r0, r1, lsr imm")
+  run_test(test_imm_sbc_lsl,  "sbc r3, r0, r1, lsl imm")
+  run_test(test_imm_sbc_asr,  "sbc r3, r0, r1, asr imm")
+  run_test(test_imm_sbc_ror,  "sbc r3, r0, r1, ror imm")
+  run_test(test_imm_sbcs_lsr, "sbcs r3, r0, r1, lsr imm")
+  run_test(test_imm_sbcs_lsl, "sbcs r3, r0, r1, lsl imm")
+  run_test(test_imm_sbcs_asr, "sbcs r3, r0, r1, asr imm")
+  run_test(test_imm_sbcs_ror, "sbcs r3, r0, r1, ror imm")
+  run_test(test_imm_rsb_lsr,  "rsb r3, r0, r1, lsr imm")
+  run_test(test_imm_rsb_lsl,  "rsb r3, r0, r1, lsl imm")
+  run_test(test_imm_rsb_asr,  "rsb r3, r0, r1, asr imm")
+  run_test(test_imm_rsb_ror,  "rsb r3, r0, r1, ror imm")
+  run_test(test_imm_rsbs_lsr, "rsbs r3, r0, r1, lsr imm")
+  run_test(test_imm_rsbs_lsl, "rsbs r3, r0, r1, lsl imm")
+  run_test(test_imm_rsbs_asr, "rsbs r3, r0, r1, asr imm")
+  run_test(test_imm_rsbs_ror, "rsbs r3, r0, r1, ror imm")
+  run_test(test_imm_rsc_lsr,  "rsc r3, r0, r1, lsr imm")
+  run_test(test_imm_rsc_lsl,  "rsc r3, r0, r1, lsl imm")
+  run_test(test_imm_rsc_asr,  "rsc r3, r0, r1, asr imm")
+  run_test(test_imm_rsc_ror,  "rsc r3, r0, r1, ror imm")
+  run_test(test_imm_rscs_lsr, "rscs r3, r0, r1, lsr imm")
+  run_test(test_imm_rscs_lsl, "rscs r3, r0, r1, lsl imm")
+  run_test(test_imm_rscs_asr, "rscs r3, r0, r1, asr imm")
+  run_test(test_imm_rscs_ror, "rscs r3, r0, r1, ror imm")
+#endif
+
+#ifdef TESTS_ARM_REG
   run_test(test_mov,   "mov r3, r0")
   run_test(test_movs,  "movs r3, r0")
   run_test(test_mvn,   "mvn r3, r0")
@@ -268,6 +357,7 @@ gotest:
   run_test(test_tst_lsl,  "tst r0, r1, lsl r2")
   run_test(test_tst_asr,  "tst r0, r1, asr r2")
   run_test(test_tst_ror,  "tst r0, r1, ror r2")
+#endif
 
   progress_bar(30)
   screen_print_N(passmsg,   45, r0)
@@ -325,7 +415,16 @@ res2_text:
   .asciz "r4:   0x%x - 0x%x"
 
 #include "text.h"
-#include "test.autogen.h"
+
+#ifdef TESTS_ARM_IMM
+#include "test.arm_imm.autogen.h"
+#endif
+#ifdef TESTS_ARM_REG
+#include "test.arm_reg.autogen.h"
+#endif
+#ifdef TESTS_THUMB
+#include "test.thumb.autogen.h"
+#endif
 
 
 
