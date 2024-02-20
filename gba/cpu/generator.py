@@ -165,6 +165,10 @@ def arm_tst(a, b, cpsr0):
   r = a & b
   return _cpsrlo(r, cpsr0)
 
+def arm_teq(a, b, cpsr0):
+  r = a ^ b
+  return _cpsrlo(r, cpsr0)
+
 def arm_mov(a, cpsr0):  return (a, cpsr0)
 def arm_mvn(a, cpsr0):  a = (~a) & 0xffffffff; return (a, cpsr0)
 def arm_neg(a, cpsr0):  return arm_sub(0, a, cpsr0)
@@ -275,6 +279,8 @@ class ASMTest(object):
     self._isimm5 = isimm5
     self._cpsr_input = cpsr_input
     self._cpsrmask = cpsrmask
+    self._datasize = 0
+    self._cdatasize = 0
     self.insts = []
     assert not (isimm and isimm5)
 
@@ -291,6 +297,9 @@ class ASMTest(object):
       else:
         self._resdata.append(res)
     self._rescpsr.append(cpsrd >> 24)
+
+  def compression_stats(self):
+    return (self._datasize, self._cdatasize)
 
   def finalize(self, tc, ttotal):
     insts = []
@@ -409,6 +418,8 @@ class ASMTest(object):
 
     insts.append(".align 4\n")
     bcodes, words = compress(self._resdata)
+    self._datasize = 4 * len(self._resdata)
+    self._cdatasize = len(bcodes) + 4 * len(words)
     insts.append("%s_resdata_words:" % self._test_name)
     for i in range(0, len(words), 8):
       insts.append(".word " + ",".join("0x%x" % x for x in words[i:i+8]))
@@ -676,6 +687,7 @@ if "arm_reg" in sys.argv[1:]:
     ("cmp", arm_cmp, False),
     ("cmn", arm_cmn, False),
     ("tst", arm_tst, True),
+    ("teq", arm_teq, True),
   ]:
     for op2, fnop2 in [("lsr", oplsr), ("lsl", oplsl), ("asr", opasr), ("ror", opror)]:
       t = ASMTest("test_" + op + "_" + op2, "allcpsr", [0, 1, 4], checkres=0)
@@ -692,10 +704,16 @@ if "arm_reg" in sys.argv[1:]:
 totcnt = sum(t._casecnt for t in alltests)
 print("@ Total number of tests: %d" % totcnt)
 
+tdatasize, tcdatasize = 0, 0
 tcount = 0
 for t in alltests:
   print("@ Case num %d" % tcount)
   print(t.finalize(tcount, totcnt))
   tcount += t._casecnt
+  # Calculate compression stats
+  s = t.compression_stats()
+  tdatasize += s[0]
+  tcdatasize += s[1]
 
+print('Test data size: %d bytes, compressed: %d bytes (%f%% size)' % (tdatasize, tcdatasize, (100 * tcdatasize) / tdatasize), file=sys.stderr)
 

@@ -361,6 +361,10 @@ gotest:
   run_test(test_tst_lsl,  "tst r0, r1, lsl r2")
   run_test(test_tst_asr,  "tst r0, r1, asr r2")
   run_test(test_tst_ror,  "tst r0, r1, ror r2")
+  run_test(test_teq_lsr,  "teq r0, r1, lsr r2")
+  run_test(test_teq_lsl,  "teq r0, r1, lsl r2")
+  run_test(test_teq_asr,  "teq r0, r1, asr r2")
+  run_test(test_teq_ror,  "teq r0, r1, ror r2")
 #endif
 
   progress_bar(30)
