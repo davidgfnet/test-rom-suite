@@ -98,6 +98,28 @@ gotest:
 @ ARM mode tests
 
 #ifdef TESTS_ARM_IMM
+  run_test(test_imm_tst,  "tst r0, imm")
+  run_test(test_imm_teq,  "teq r0, imm")
+  run_test(test_imm_cmp,  "cmp r0, imm")
+  run_test(test_imm_cmn,  "cmn r0, imm")
+
+  run_test(test_imm_tst_lsr,  "tst r0, r1, lsr imm")
+  run_test(test_imm_tst_lsl,  "tst r0, r1, lsl imm")
+  run_test(test_imm_tst_asr,  "tst r0, r1, asr imm")
+  run_test(test_imm_tst_ror,  "tst r0, r1, ror imm")
+  run_test(test_imm_teq_lsr,  "teq r0, r1, lsr imm")
+  run_test(test_imm_teq_lsl,  "teq r0, r1, lsl imm")
+  run_test(test_imm_teq_asr,  "teq r0, r1, asr imm")
+  run_test(test_imm_teq_ror,  "teq r0, r1, ror imm")
+  run_test(test_imm_cmp_lsr,  "cmp r0, r1, lsr imm")
+  run_test(test_imm_cmp_lsl,  "cmp r0, r1, lsl imm")
+  run_test(test_imm_cmp_asr,  "cmp r0, r1, asr imm")
+  run_test(test_imm_cmp_ror,  "cmp r0, r1, ror imm")
+  run_test(test_imm_cmn_lsr,  "cmn r0, r1, lsr imm")
+  run_test(test_imm_cmn_lsl,  "cmn r0, r1, lsl imm")
+  run_test(test_imm_cmn_asr,  "cmn r0, r1, asr imm")
+  run_test(test_imm_cmn_ror,  "cmn r0, r1, ror imm")
+
   run_test(test_imm_and,  "and  r3, r0, imm")
   run_test(test_imm_ands, "ands r3, r0, imm")
   run_test(test_imm_orr,  "orr  r3, r0, imm")

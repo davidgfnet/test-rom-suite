@@ -520,6 +520,36 @@ if "thumb" in sys.argv[1:]:
 # Immediate mode (12 bit)
 if "arm_imm" in sys.argv[1:]:
   for op, fnop, rorflg in [
+    ("tst", arm_tst, True),  ("teq", arm_teq, True),
+    ("cmp", arm_cmp, False), ("cmn", arm_cmn, False),
+  ]:
+    t = ASMTest("test_imm_" + op, "allcpsr", [0, 5], isimm=True, checkres=0)
+    t.addInst(" %s r0, $0x55" % op)
+    for opB in input_table[5]:
+      for opA in input_table[0]:
+        for cpsr in allcpsr:
+          opBval, cpsr1 = op2ror(opB[1], opB[0], cpsr)
+          cpsrres = fnop(opA, opBval, cpsr1 if rorflg else cpsr)
+          t.addTestCase(cpsr, None, cpsrres)
+    alltests.append(t)
+
+  for op, fnop, updflag in [
+    ("tst", arm_tst, True),  ("teq", arm_teq, True),
+    ("cmp", arm_cmp, False), ("cmn", arm_cmn, False),
+  ]:
+    for op2, fnop2 in [("lsr", oplsr_imm), ("lsl", oplsl_imm), ("asr", opasr_imm), ("ror", opror_imm)]:
+      t = ASMTest("test_imm_" + op + "_" + op2, "allcpsr", [0, 1, 6], isimm5=True, checkres=0)
+      t.addInst(" %s r0, r1, %s $0x5" % (op, op2))
+      for opC in input_table[6]:
+        for opB in input_table[1]:
+          for opA in input_table[0]:
+            for cpsr in allcpsr:
+              operand2, cpsrint = fnop2(opB, opC, cpsr)
+              cpsrres = fnop(opA, operand2, cpsrint if updflag else cpsr)
+              t.addTestCase(cpsr, None, cpsrres)
+      alltests.append(t)
+
+  for op, fnop, rorflg in [
     ("and", arm_and, False), ("ands", arm_ands, True),
     ("orr", arm_orr, False), ("orrs", arm_orrs, True),
     ("eor", arm_eor, False), ("eors", arm_eors, True),
