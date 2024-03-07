@@ -27,6 +27,27 @@ def _cpsrlo(res, cpsr):
   n = 1 if res & 0x80000000 else 0
   return ((cpsr & 0x30000000) | ((1 if n else 0) << 31) | ((1 if z else 0) << 30))
 
+# Thumb imm insts
+def thlsl_imm(op, imm, cpsr0):
+  return oplsl(op, imm, cpsr0)
+
+def thlsr_imm(op, imm, cpsr0):
+  if imm == 0:
+    r = 0
+    c = (op >> 31) & 1
+  else:
+    r = op >> imm
+    c = (op >> (imm-1)) & 1
+  return (r, _cpsr((r & 0x80000000) != 0, r == 0, c, (cpsr0 >> 28) & 1))
+
+def thasr_imm(op, imm, cpsr0):
+  if imm == 0:
+    imm = 32
+  for i in range(imm):
+    c = op & 1
+    op = (op >> 1) | (op & 0x80000000)
+  return (op, _cpsr((op & 0x80000000) != 0, op == 0, c, (cpsr0 >> 28) & 1))
+
 # Immediate Op2. Can only really affect carry flag
 def oplsr_imm(op, imm, cpsr0):
   if imm == 0:
@@ -267,7 +288,7 @@ def compress(res_array):
 
 class ASMTest(object):
   def __init__(self, test_name, cpsr_input, input_tables,
-               cpsrmask=0xF0, checkres=1, thumbmode=False, isimm=False, isimm5=False):
+               cpsrmask=0xF0, checkres=1, thumbmode=False, isimm=None):
     self._resdata = []
     self._rescpsr = []
     self._test_name = test_name
@@ -276,13 +297,11 @@ class ASMTest(object):
     self._checkres = checkres
     self._thumbmode = thumbmode
     self._isimm = isimm
-    self._isimm5 = isimm5
     self._cpsr_input = cpsr_input
     self._cpsrmask = cpsrmask
     self._datasize = 0
     self._cdatasize = 0
     self.insts = []
-    assert not (isimm and isimm5)
 
   def addInst(self, inst):
     self.insts.append(inst)
@@ -362,20 +381,14 @@ class ASMTest(object):
     insts.append("ldr r7, =55f")
 
     if self._isimm:
+      nbits, shft = self._isimm
+      regopn = "r%d" % (len(self._input_tables) - 1)
+      clearmask = ((1 << nbits) - 1) << shft
       # Copy the instructions to IWRAM, then patch them too
       insts.append("mov r5, $0x03000000")
       insts.append("ldr r3, [r7], #4")
-      insts.append("bic r3, r3, $0xff")   # Only the 8 LSB are non-zero
-      insts.append("orr r3, r3, r1")
-      insts.append("str r3, [r5], #4")
-      insts.append("ldr r3, [r7], #4")    # Copy any return instruction
-      insts.append("str r3, [r5], #4")
-      insts.append("mov r7, $0x03000000")
-    elif self._isimm5:
-      insts.append("mov r5, $0x03000000")
-      insts.append("ldr r3, [r7], #4")
-      insts.append("bic r3, r3, $0xF80")   # Imm5 goes in bits [11..7]
-      insts.append("orr r3, r3, r2, lsl #7")
+      insts.append("bic r3, r3, $0x%x" % clearmask)  # Clear inst bits
+      insts.append("orr r3, r3, %s, lsl #%d" % (regopn, shft))
       insts.append("str r3, [r5], #4")
       insts.append("ldr r3, [r7], #4")    # Copy any return instruction
       insts.append("str r3, [r5], #4")
@@ -515,6 +528,17 @@ if "thumb" in sys.argv[1:]:
           t.addTestCase(cpsr, res, cpsrres)
     alltests.append(t)
 
+  # Some funny immediate modes
+  for op, fnop in [ ("lsl", thlsl_imm), ("lsr", thlsr_imm), ("asr", thasr_imm) ]:
+    t = ASMTest("thtest_immshft_" + op, "allcpsr", [0, 6], thumbmode=True, isimm=(5, 6))
+    t.addInst(" %s r3, r0, $29" % op)
+    for opB in input_table[6]:
+      for opA in input_table[0]:
+        for cpsr in allcpsr:
+          res, cpsrres = fnop(opA, opB, cpsr)
+          t.addTestCase(cpsr, res, cpsrres)
+    alltests.append(t)
+
 # ARM mode tests
 
 # Immediate mode (12 bit)
@@ -523,7 +547,7 @@ if "arm_imm" in sys.argv[1:]:
     ("tst", arm_tst, True),  ("teq", arm_teq, True),
     ("cmp", arm_cmp, False), ("cmn", arm_cmn, False),
   ]:
-    t = ASMTest("test_imm_" + op, "allcpsr", [0, 5], isimm=True, checkres=0)
+    t = ASMTest("test_imm_" + op, "allcpsr", [0, 5], isimm=(8, 0), checkres=0)
     t.addInst(" %s r0, $0x55" % op)
     for opB in input_table[5]:
       for opA in input_table[0]:
@@ -538,7 +562,7 @@ if "arm_imm" in sys.argv[1:]:
     ("cmp", arm_cmp, False), ("cmn", arm_cmn, False),
   ]:
     for op2, fnop2 in [("lsr", oplsr_imm), ("lsl", oplsl_imm), ("asr", opasr_imm), ("ror", opror_imm)]:
-      t = ASMTest("test_imm_" + op + "_" + op2, "allcpsr", [0, 1, 6], isimm5=True, checkres=0)
+      t = ASMTest("test_imm_" + op + "_" + op2, "allcpsr", [0, 1, 6], isimm=(5, 7), checkres=0)
       t.addInst(" %s r0, r1, %s $0x5" % (op, op2))
       for opC in input_table[6]:
         for opB in input_table[1]:
@@ -561,7 +585,7 @@ if "arm_imm" in sys.argv[1:]:
     ("rsb", arm_rsb, False), ("rsbs", arm_rsbs, False),
     ("rsc", arm_rsc, False), ("rscs", arm_rscs, False),
   ]:
-    t = ASMTest("test_imm_" + op, "allcpsr", [0, 5], isimm=True)
+    t = ASMTest("test_imm_" + op, "allcpsr", [0, 5], isimm=(8, 0))
     t.addInst(" %s r3, r0, $0x55" % op)
     for opB in input_table[5]:
       for opA in input_table[0]:
@@ -585,7 +609,7 @@ if "arm_imm" in sys.argv[1:]:
     ("rsc", arm_rsc, False), ("rscs", arm_rscs, False),
   ]:
     for op2, fnop2 in [("lsr", oplsr_imm), ("lsl", oplsl_imm), ("asr", opasr_imm), ("ror", opror_imm)]:
-      t = ASMTest("test_imm_" + op + "_" + op2, "allcpsr", [0, 1, 6], isimm5=True)
+      t = ASMTest("test_imm_" + op + "_" + op2, "allcpsr", [0, 1, 6], isimm=(5, 7))
       t.addInst(" %s r3, r0, r1, %s $0x5" % (op, op2))
       for opC in input_table[6]:
         for opB in input_table[1]:

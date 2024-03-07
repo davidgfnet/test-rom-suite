@@ -72,6 +72,10 @@ gotest:
 @ Thumb mode tests
 
 #ifdef TESTS_THUMB
+  run_test(thtest_immshft_lsl, "lsl r3, r1, imm")
+  run_test(thtest_immshft_lsr, "lsr r3, r1, imm")
+  run_test(thtest_immshft_asr, "asr r3, r1, imm")
+
   run_test(thtest_cmp,  "cmp r3, r1")
   run_test(thtest_cmn,  "cmn r3, r1")
   run_test(thtest_tst,  "tst r3, r1")
