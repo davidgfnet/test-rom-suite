@@ -83,6 +83,7 @@ def opror_imm(op, imm, cpsr0):
 
 
 def oplsr(a, b, cpsr0):
+  b = b & 0xFF  # The value is held in the least significant byte
   r = a >> b
   if b == 0:
     c = (cpsr0 >> 29) & 1
@@ -91,6 +92,7 @@ def oplsr(a, b, cpsr0):
   return (r, _cpsr((r & 0x80000000) != 0, r == 0, c, (cpsr0 >> 28) & 1))
 
 def oplsl(a, b, cpsr0):
+  b = b & 0xFF  # The value is held in the least significant byte
   r = (a << b) & 0xffffffff
   if b == 0:
     c = (cpsr0 >> 29) & 1
@@ -99,6 +101,7 @@ def oplsl(a, b, cpsr0):
   return (r, _cpsr((r & 0x80000000) != 0, r == 0, c, (cpsr0 >> 28) & 1))
 
 def opasr(a, b, cpsr0):
+  b = b & 0xFF  # The value is held in the least significant byte
   if b == 0:
     c = (cpsr0 >> 29) & 1
   else:
@@ -108,6 +111,7 @@ def opasr(a, b, cpsr0):
   return (a, _cpsr((a & 0x80000000) != 0, a == 0, c, (cpsr0 >> 28) & 1))
 
 def opror(a, b, cpsr0):
+  b = b & 0xFF  # The value is held in the least significant byte
   if b == 0:
     c = (cpsr0 >> 29) & 1
   else:
@@ -234,7 +238,7 @@ def arm_smulls(a, b, cpsr0):
   return (rlo, rhi, (cpsr & 0x30000000) | ((1 if rhi & 0x80000000 else 0) << 31) | ((1 if (rlo|rhi) == 0 else 0) << 30))
 
 def genInterestingShifts():
-  return [0, 1, 2, 30, 31, 32, 33, 34]
+  return [0, 1, 2, 30, 31, 32, 33, 34, 288, 289, 318, 319, 1056, 1057, 1086, 1087]
 
 def genInterestingShifts15():
   return [0, 1, 14, 15, 16, 29, 30, 31]
@@ -620,7 +624,7 @@ if "arm_imm" in sys.argv[1:]:
               t.addTestCase(cpsr, res, cpsrres)
       alltests.append(t)
 
-if "arm_reg" in sys.argv[1:]:
+if "arm_reg1" in sys.argv[1:]:
   for op, fnop, upflg in [
     ("lsr", oplsr, False), ("lsrs", oplsr, True),
     ("lsl", oplsl, False), ("lsls", oplsl, True),
@@ -697,19 +701,27 @@ if "arm_reg" in sys.argv[1:]:
             t.addTestCase(cpsr, res, cpsrres)
     alltests.append(t)
 
-  for op, fnop, updflag in [
+if "arm_reg1" in sys.argv[1:]:
+  complex_list = [
     ("and", arm_and, False), ("ands", arm_ands, True),
     ("orr", arm_orr, False), ("orrs", arm_orrs, True),
     ("eor", arm_eor, False), ("eors", arm_eors, True),
     ("bic", arm_bic, False), ("bics", arm_bics, True),
-
+  ]
+elif "arm_reg2" in sys.argv[1:]:
+  complex_list = [
     ("add", arm_add, False), ("adds", arm_adds, False),
     ("sub", arm_sub, False), ("subs", arm_subs, False),
     ("adc", arm_adc, False), ("adcs", arm_adcs, False),
     ("sbc", arm_sbc, False), ("sbcs", arm_sbcs, False),
     ("rsb", arm_rsb, False), ("rsbs", arm_rsbs, False),
     ("rsc", arm_rsc, False), ("rscs", arm_rscs, False),
-  ]:
+  ]
+else:
+  complex_list = []
+
+if complex_list:
+  for op, fnop, updflag in complex_list:
     for op2, fnop2 in [("lsr", oplsr), ("lsl", oplsl), ("asr", opasr), ("ror", opror)]:
       t = ASMTest("test_" + op + "_" + op2, "allcpsr", [0, 1, 4])
       t.addInst(" %s r3, r0, r1, %s r2" % (op, op2))
@@ -722,6 +734,7 @@ if "arm_reg" in sys.argv[1:]:
               t.addTestCase(cpsr, res, cpsrres)
       alltests.append(t)
 
+if "arm_reg2" in sys.argv[1:]:
   for op, fnop, upflg in [
     ("mov", arm_mov, False), ("movs", arm_movs, True),
     ("mvn", arm_mvn, False), ("mvns", arm_mvns, True),

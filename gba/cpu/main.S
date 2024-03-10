@@ -72,10 +72,6 @@ gotest:
 @ Thumb mode tests
 
 #ifdef TESTS_THUMB
-  run_test(thtest_immshft_lsl, "lsl r3, r1, imm")
-  run_test(thtest_immshft_lsr, "lsr r3, r1, imm")
-  run_test(thtest_immshft_asr, "asr r3, r1, imm")
-
   run_test(thtest_cmp,  "cmp r3, r1")
   run_test(thtest_cmn,  "cmn r3, r1")
   run_test(thtest_tst,  "tst r3, r1")
@@ -97,6 +93,10 @@ gotest:
   run_test(thtest_eor,  "eors r3, r0, r1")
   run_test(thtest_bic,  "bics r3, r0, r1")
   run_test(thtest_mul,  "muls r3, r0, r1")
+
+  run_test(thtest_immshft_lsl, "lsl r3, r1, imm")
+  run_test(thtest_immshft_lsr, "lsr r3, r1, imm")
+  run_test(thtest_immshft_asr, "asr r3, r1, imm")
 #endif
 
 @ ARM mode tests
@@ -229,7 +229,7 @@ gotest:
   run_test(test_imm_rscs_ror, "rscs r3, r0, r1, ror imm")
 #endif
 
-#ifdef TESTS_ARM_REG
+#ifdef TESTS_ARM_REG1
   run_test(test_mov,   "mov r3, r0")
   run_test(test_movs,  "movs r3, r0")
   run_test(test_mvn,   "mvn r3, r0")
@@ -307,7 +307,9 @@ gotest:
   run_test(test_bics_lsl, "bics r3, r0, r1, lsl r2")
   run_test(test_bics_asr, "bics r3, r0, r1, asr r2")
   run_test(test_bics_ror, "bics r3, r0, r1, ror r2")
+#endif
 
+#ifdef TESTS_ARM_REG2
   run_test(test_add_lsr,  "add r3, r0, r1, lsr r2")
   run_test(test_add_lsl,  "add r3, r0, r1, lsl r2")
   run_test(test_add_asr,  "add r3, r0, r1, asr r2")
@@ -453,8 +455,11 @@ res2_text:
 #ifdef TESTS_ARM_IMM
 #include "test.arm_imm.autogen.h"
 #endif
-#ifdef TESTS_ARM_REG
-#include "test.arm_reg.autogen.h"
+#ifdef TESTS_ARM_REG1
+#include "test.arm_reg1.autogen.h"
+#endif
+#ifdef TESTS_ARM_REG2
+#include "test.arm_reg2.autogen.h"
 #endif
 #ifdef TESTS_THUMB
 #include "test.thumb.autogen.h"
