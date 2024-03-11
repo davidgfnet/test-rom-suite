@@ -238,7 +238,7 @@ def arm_smulls(a, b, cpsr0):
   return (rlo, rhi, (cpsr & 0x30000000) | ((1 if rhi & 0x80000000 else 0) << 31) | ((1 if (rlo|rhi) == 0 else 0) << 30))
 
 def genInterestingShifts():
-  return [0, 1, 2, 30, 31, 32, 33, 34, 288, 289, 318, 319, 1056, 1057, 1086, 1087]
+  return [0, 1, 2, 30, 31, 32, 33, 34, 288, 289, 318, 319, 1024, 1057, 1086, 1087]
 
 def genInterestingShifts15():
   return [0, 1, 14, 15, 16, 29, 30, 31]
