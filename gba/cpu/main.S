@@ -395,6 +395,10 @@ gotest:
   run_test(test_teq_ror,  "teq r0, r1, ror r2")
 #endif
 
+#ifdef TESTS_ARM_PC
+  bl run_pc_tests
+#endif
+
   progress_bar(30)
   screen_print_N(passmsg,   45, r0)
 
@@ -463,6 +467,9 @@ res2_text:
 #endif
 #ifdef TESTS_THUMB
 #include "test.thumb.autogen.h"
+#endif
+#ifdef TESTS_ARM_PC
+#include "test.arm_pc.autogen.h"
 #endif
 
 
