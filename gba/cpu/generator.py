@@ -482,6 +482,11 @@ for op in genInterestingShifts15():
   input_table[6].append(op)
   print(".word 0x%x" % op)
 
+print("operand_table_7:")  # All 3 bit immediates
+input_table.append(list(range(2**3)))
+for op in input_table[-1]:
+  print(".word 0x%x" % op)
+
 alltests = []
 
 
@@ -522,6 +527,16 @@ if "thumb" in sys.argv[1:]:
           t.addTestCase(cpsr, res, cpsrres)
     alltests.append(t)
 
+  for op, fnop in [ ("add", arm_adds), ("sub", arm_subs) ]:
+    t = ASMTest("thtest3_" + op, "allcpsr", [0, 1], thumbmode=True)
+    t.addInst(" %s r3, r0, r1" % op)
+    for opB in input_table[1]:
+      for opA in input_table[0]:
+        for cpsr in allcpsr:
+          res, cpsrres = fnop(opA, opB, cpsr)
+          t.addTestCase(cpsr, res, cpsrres)
+    alltests.append(t)
+
   # Shift operands
   for op, fnop in [("lsr", oplsr), ("lsl", oplsl), ("asr", opasr), ("ror", opror)]:
     t = ASMTest("thtest_" + op, "allcpsr", [0, 4], thumbmode=True)
@@ -534,6 +549,46 @@ if "thumb" in sys.argv[1:]:
     alltests.append(t)
 
   # Some funny immediate modes
+  for op, fnop in [ ("add", arm_adds), ("sub", arm_subs) ]:
+    t = ASMTest("thtest_imm_" + op, "allcpsr", [0, 6], thumbmode=True, isimm=(8, 0))
+    t.addInst(" %s r3, $130" % op)
+    for opB in input_table[6]:
+      for opA in input_table[0]:
+        for cpsr in allcpsr:
+          res, cpsrres = fnop(opA, opB, cpsr)
+          t.addTestCase(cpsr, res, cpsrres)
+    alltests.append(t)
+
+  for op, fnop in [ ("add", arm_adds), ("sub", arm_subs) ]:
+    t = ASMTest("thtest_imm3_" + op, "allcpsr", [0, 7], thumbmode=True, isimm=(3, 6))
+    t.addInst(" %s r3, r0, $7" % op)
+    for opB in input_table[7]:
+      for opA in input_table[0]:
+        for cpsr in allcpsr:
+          res, cpsrres = fnop(opA, opB, cpsr)
+          t.addTestCase(cpsr, res, cpsrres)
+    alltests.append(t)
+
+  for op, fnop in [ ("cmp", arm_cmp) ]:
+    t = ASMTest("thtest_imm_" + op, "allcpsr", [0, 6], thumbmode=True, isimm=(8, 0), checkres=0)
+    t.addInst(" %s r3, $130" % op)
+    for opB in input_table[6]:
+      for opA in input_table[0]:
+        for cpsr in allcpsr:
+          cpsrres = fnop(opA, opB, cpsr)
+          t.addTestCase(cpsr, None, cpsrres)
+    alltests.append(t)
+
+  for op, fnop in [ ("movs", arm_movs) ]:
+    t = ASMTest("thtest_imm_" + op, "allcpsr", [0, 6], thumbmode=True, isimm=(8, 0))
+    t.addInst(" %s r3, $130" % op)
+    for opB in input_table[6]:
+      for opA in input_table[0]:
+        for cpsr in allcpsr:
+          res, cpsrres = fnop(opB, cpsr)
+          t.addTestCase(cpsr, res, cpsrres)
+    alltests.append(t)
+
   for op, fnop in [ ("lsl", thlsl_imm), ("lsr", thlsr_imm), ("asr", thasr_imm) ]:
     t = ASMTest("thtest_immshft_" + op, "allcpsr", [0, 6], thumbmode=True, isimm=(5, 6))
     t.addInst(" %s r3, r0, $29" % op)
