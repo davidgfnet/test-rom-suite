@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 # We generate a test for every instruction type (data processing)
 # with every possible mode (set flag and don't set flag), CPSR

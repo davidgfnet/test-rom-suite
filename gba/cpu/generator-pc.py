@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 # Generate a bunch of tests that use PC as a source value
 # to validate the right PC offset is used.
