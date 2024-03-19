@@ -1,0 +1,29 @@
+
+name: Build test ROMs
+run-name: Generate tests and build ROMs
+
+on: [push]
+
+jobs:
+  generate-roms:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install dependencies
+        run: sudo apt-get install gcc-arm-none-eabi
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Build GBA ROMs
+        run: make -C gba
+      - name: Package assets
+        run: tar -czf gba-test-roms.tar.gz $( find -name "*.gba" )
+      - name: Get short SHA
+        id: slug
+        run: echo "::set-output name=sha8::$(echo ${GITHUB_SHA} | cut -c1-8)"
+      - name: Upload artifacts
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: gba-test-roms-${{ steps.slug.outputs.sha8 }}
+          path: gba-test-roms.tar.gz
+
