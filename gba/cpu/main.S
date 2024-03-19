@@ -79,11 +79,6 @@ gotest:
   run_test(thtest_mvn,  "mvn r3, r0")
   run_test(thtest_neg,  "neg r3, r0")
 
-  run_test(thtest_lsr,  "lsr r3, r0, r1")
-  run_test(thtest_lsl,  "lsl r3, r0, r1")
-  run_test(thtest_asr,  "asr r3, r0, r1")
-  run_test(thtest_ror,  "ror r3, r0, r1")
-
   run_test(thtest_add,  "adds r3, r0, r1")
   run_test(thtest_sub,  "subs r3, r0, r1")
   run_test(thtest_adc,  "adcs r3, r0, r1")
@@ -93,6 +88,11 @@ gotest:
   run_test(thtest_eor,  "eors r3, r0, r1")
   run_test(thtest_bic,  "bics r3, r0, r1")
   run_test(thtest_mul,  "muls r3, r0, r1")
+
+  run_test(thtest_lsr,  "lsr r3, r0, r1")
+  run_test(thtest_lsl,  "lsl r3, r0, r1")
+  run_test(thtest_asr,  "asr r3, r0, r1")
+  run_test(thtest_ror,  "ror r3, r0, r1")
 
   run_test(thtest_immshft_lsl, "lsl r3, r1, imm")
   run_test(thtest_immshft_lsr, "lsr r3, r1, imm")
