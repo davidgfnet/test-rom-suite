@@ -632,6 +632,19 @@ if "arm_imm" in sys.argv[1:]:
           t.addTestCase(cpsr, None, cpsrres)
     alltests.append(t)
 
+  for op, fnop, rorflg in [
+    ("mov", arm_mov, False), ("movs", arm_movs, True),
+    ("mvn", arm_mvn, False), ("mvns", arm_mvns, True),
+  ]:
+    t = ASMTest("test_imm_" + op, "allcpsr", [5], isimm=(8, 0))
+    t.addInst(" %s r3, $0x55" % op)
+    for opA in input_table[5]:
+      for cpsr in allcpsr:
+        op2val, cpsr1 = op2ror(opA[1], opA[0], cpsr)
+        res, cpsrres = fnop(op2val, cpsr1 if rorflg else cpsr)
+        t.addTestCase(cpsr, res, cpsrres)
+    alltests.append(t)
+
   for op, fnop, updflag in [
     ("tst", arm_tst, True),  ("teq", arm_teq, True),
     ("cmp", arm_cmp, False), ("cmn", arm_cmn, False),

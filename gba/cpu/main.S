@@ -113,6 +113,11 @@ gotest:
 @ ARM mode tests
 
 #ifdef TESTS_ARM_IMM
+  run_test(test_imm_mov,  "mov r0, imm")
+  run_test(test_imm_movs, "movs r0, imm")
+  run_test(test_imm_mvn,  "mvn r0, imm")
+  run_test(test_imm_mvns, "mvns r0, imm")
+
   run_test(test_imm_tst,  "tst r0, imm")
   run_test(test_imm_teq,  "teq r0, imm")
   run_test(test_imm_cmp,  "cmp r0, imm")
