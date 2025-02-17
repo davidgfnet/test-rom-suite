@@ -12,18 +12,18 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get install gcc-arm-none-eabi pypy3
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+      - name: Get short SHA
+        id: slug
+        run: echo "sha8=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_OUTPUT
       - name: Build GBA ROMs
         run: make -C gba
       - name: Package assets
-        run: tar -czf gba-test-roms.tar.gz $( find -name "*.gba" )
-      - name: Get short SHA
-        id: slug
-        run: echo "::set-output name=sha8::$(echo ${GITHUB_SHA} | cut -c1-8)"
+        run: zip -r gba-test-roms.zip $( find -name "*.gba" )
       - name: Upload artifacts
         if: ${{ success() }}
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: gba-test-roms-${{ steps.slug.outputs.sha8 }}
-          path: gba-test-roms.tar.gz
+          path: gba-test-roms.zip
 
