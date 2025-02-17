@@ -7,7 +7,7 @@ static char dec2hex(unsigned x) {
   return 'a' + x - 10;
 }
 
-void ldmstm_fmt(char *out, unsigned base_reg, unsigned mode, unsigned mask) {
+void arm_ldmstm_fmt(char *out, unsigned base_reg, unsigned mode, unsigned mask) {
   int cnt = 0;
   out[cnt++] = mode & 2 ? 'D' : 'I';
   out[cnt++] = mode & 4 ? 'A' : 'B';
@@ -29,7 +29,7 @@ void ldmstm_fmt(char *out, unsigned base_reg, unsigned mode, unsigned mask) {
   out[cnt++] = 0;
 }
 
-void stm_fmt(char *out, unsigned base_reg, unsigned mode, unsigned mask) {
+void arm_stm_fmt(char *out, unsigned base_reg, unsigned mode, unsigned mask) {
   out[0] = ' ';
   out[1] = '>';
   out[2] = ' ';
@@ -37,10 +37,10 @@ void stm_fmt(char *out, unsigned base_reg, unsigned mode, unsigned mask) {
   out[4] = 'T';
   out[5] = 'M';
 
-  ldmstm_fmt(&out[6], base_reg, mode, mask);
+  arm_ldmstm_fmt(&out[6], base_reg, mode, mask);
 }
 
-void ldm_fmt(char *out, unsigned base_reg, unsigned mode, unsigned mask) {
+void arm_ldm_fmt(char *out, unsigned base_reg, unsigned mode, unsigned mask) {
   out[0] = ' ';
   out[1] = '>';
   out[2] = ' ';
@@ -48,7 +48,49 @@ void ldm_fmt(char *out, unsigned base_reg, unsigned mode, unsigned mask) {
   out[4] = 'D';
   out[5] = 'M';
 
-  ldmstm_fmt(&out[6], base_reg, mode, mask);
+  arm_ldmstm_fmt(&out[6], base_reg, mode, mask);
+}
+
+void thumb_ldmstm_fmt(char *out, unsigned base_reg, unsigned mode, unsigned mask) {
+  int cnt = 0;
+  out[cnt++] = mode & 2 ? 'D' : 'I';
+  out[cnt++] = mode & 4 ? 'A' : 'B';
+  out[cnt++] = ' ';
+  out[cnt++] = 'r';
+  if (base_reg >= 10)
+    out[cnt++] = '0' + base_reg / 10;
+  out[cnt++] = '0' + base_reg % 10;
+
+  out[cnt++] = mode & 1 ? '!' : ' ';
+  out[cnt++] = ',';
+  out[cnt++] = ' ';
+  out[cnt++] = '0';
+  out[cnt++] = 'x';
+  out[cnt++] = dec2hex((mask >> 4) & 0xF);
+  out[cnt++] = dec2hex(mask & 0xF);
+  out[cnt++] = 0;
+}
+
+void thumb_stm_fmt(char *out, unsigned base_reg, unsigned mode, unsigned mask) {
+  out[0] = ' ';
+  out[1] = '>';
+  out[2] = ' ';
+  out[3] = 'S';
+  out[4] = 'T';
+  out[5] = 'M';
+
+  thumb_ldmstm_fmt(&out[6], base_reg, mode, mask);
+}
+
+void thumb_ldm_fmt(char *out, unsigned base_reg, unsigned mode, unsigned mask) {
+  out[0] = ' ';
+  out[1] = '>';
+  out[2] = ' ';
+  out[3] = 'L';
+  out[4] = 'D';
+  out[5] = 'M';
+
+  thumb_ldmstm_fmt(&out[6], base_reg, mode, mask);
 }
 
 

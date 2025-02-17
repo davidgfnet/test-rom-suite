@@ -492,7 +492,7 @@ testfail_ldm:
   and r2, r0, $7           @ mode
   lsr r1, r0, #3           @ base reg
   ldr r0, =printbuf
-  bl ldm_fmt
+  bl arm_ldm_fmt
 
   screen_print_N(printbuf,   40, r0)
 
@@ -581,13 +581,11 @@ print_stm_inst:
   str lr, [sp]
 
   @ Write instruction string
-  @ void stm_fmt(char *out, unsigned base_reg, unsigned mode)
-
   mov r3, r6
   and r2, r0, $7           @ mode
   lsr r1, r0, #3           @ base reg
   ldr r0, =printbuf
-  bl stm_fmt
+  bl arm_stm_fmt
 
   screen_print_N(printbuf,   40, r0)
 
@@ -823,9 +821,9 @@ thumb_ldmia_test_fail:
   str r1, [sp]
 
   mov r3, r2
-  mov r2, $3               @ mode (IA!)
+  mov r2, $5               @ mode (IA!)
   ldr r0, =printbuf
-  bl ldm_fmt
+  bl thumb_ldm_fmt
 
   screen_print_N(printbuf,   40, r0)
 
@@ -855,9 +853,9 @@ thumb_stmia_test_fail:
   str r1, [sp]
 
   mov r3, r2
-  mov r2, $3               @ mode (IA!)
+  mov r2, $5               @ mode (IA!)
   ldr r0, =printbuf
-  bl stm_fmt
+  bl thumb_stm_fmt
 
   screen_print_N(printbuf,   40, r0)
 
@@ -888,9 +886,9 @@ thumb_stmia_test_fail_mem:
   str r5, [sp, #4]
 
   mov r3, r2
-  mov r2, $3               @ mode (IA!)
+  mov r2, $5               @ mode (IA!)
   ldr r0, =printbuf
-  bl stm_fmt
+  bl thumb_stm_fmt
   screen_print_N(printbuf,   40, r0)
 
   ldr r0, =printbuf
